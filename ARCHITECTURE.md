@@ -187,3 +187,21 @@ Deadline: **Oct 30, 2026, 11:45pm EDT**. Target submit: Oct 30, midday EDT.
 | M5 | Oct 29–30 | README (pitch, honest limitation, run locally), MIT LICENSE, `.env.example`, Devpost text, demo script, buffer | Submitted |
 
 **Fallback if the key is late**: M1 and M2 run against the mock client with hand-built fixtures, then switch to live data the day the key arrives. Scope to cut first, in order: venue signal, age delta display, share links, Tour mode beyond 4 cities.
+
+## Progress (updated 2026-10-16)
+
+| Milestone | State |
+|---|---|
+| M0 scaffold, repo, mock client | Done. Vercel deploy still to do |
+| M1 extract, resolve, score, underlines | Done **on demo data**. Live Qloo client waits for the hackathon key; `scripts/qloo-spike.mjs` confirms the response fields in one run |
+| M2 swaps | Swap suggestions and one-click replace work. Still to do: LLM line rewrite (a/an, voice), threshold calibration on live data, Redis cache |
+| M3 tour mode, Crowd Card | Tour grid and Crowd Card done. Trending flags need live `bias.trends` data |
+| M4 polish | Share links, rate limiting and mobile layout done. Still to do: venue signal (if the spike supports it), final design pass |
+
+### Decisions that changed the plan
+
+- **Demo-data mode is a first-class path.** `MockQlooClient` and `src/lib/qloo/fixtures.ts` back the whole app with invented, clearly labelled numbers ("Demo data" badge) so the product runs without a key. The fixtures are not Qloo data.
+- **Extractor fallback.** Without `ANTHROPIC_API_KEY` a keyword matcher over the fixtures extracts references, so the preloaded sets work with zero keys.
+- **Structured output, not forced tool use.** Reference extraction uses `messages.parse` with a Zod schema, because forced `tool_choice` returns 400 on the current models.
+- **Tour mode hides the Crowd Card** and shows the grid full width; the editor underline shows the weakest city.
+- **In-memory rate limit** (20 checks/min per IP) instead of Redis for now. Upstash stays optional.

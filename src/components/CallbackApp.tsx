@@ -1,6 +1,6 @@
 "use client";
 
-import { LoaderCircle, SpellCheck } from "lucide-react";
+import { Check, Link as LinkIcon, LoaderCircle, SpellCheck } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CrowdCard } from "./CrowdCard";
 import { Editor, type EditorHandle, type Mark, type MarkClick } from "./Editor";
@@ -8,6 +8,7 @@ import { RefPopover } from "./RefPopover";
 import { Select } from "./Select";
 import { TourGrid, worst } from "./TourGrid";
 import { PRESETS } from "@/lib/presets";
+import { decodeShare, encodeShare } from "@/lib/share";
 import { DEMO_CITIES } from "@/lib/qloo/fixtures";
 import { AGE_BANDS, AGE_LABELS, type AgeBand, type Candidate, type CheckResult, type Reference, type Room, roomKey } from "@/lib/types";
 
@@ -34,6 +35,7 @@ export function CallbackApp() {
   const [open, setOpen] = useState<Open | null>(null);
   const [mode, setMode] = useState<Mode>("room");
   const [tour, setTour] = useState<string[]>(DEFAULT_TOUR);
+  const [copied, setCopied] = useState(false);
 
   const text = useRef(first.text);
   const editor = useRef<EditorHandle>(null);
@@ -67,8 +69,33 @@ export function CallbackApp() {
   }, []);
 
   useEffect(() => {
-    void run(first.text, [first.room]);
+    const shared = decodeShare(window.location.hash);
+    if (!shared) {
+      void run(first.text, [first.room]);
+      return;
+    }
+    const r: Room = { city: shared.r.city, age: shared.r.age };
+    setPresetId("");
+    setInitialDoc(shared.t);
+    setDocKey(`shared-${Date.now()}`);
+    setRoom(r);
+    setMode(shared.m);
+    setTour(shared.c);
+    text.current = shared.t;
+    void run(shared.t, shared.m === "tour" ? shared.c.map((city) => ({ ...r, city })) : [r]);
   }, [run, first]);
+
+  const copyLink = async () => {
+    const hash = encodeShare({ t: text.current, r: { city: room.city, age: room.age }, m: mode, c: tour });
+    window.history.replaceState(null, "", hash);
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      // clipboard blocked: the address bar now holds the link
+    }
+  };
 
   const roomsFor = useCallback(
     (m: Mode, r: Room, cities: string[]): Room[] => (m === "tour" ? cities.map((city) => ({ ...r, city })) : [r]),
@@ -185,7 +212,12 @@ export function CallbackApp() {
           </p>
 
           <div className="mt-6 flex flex-wrap items-end gap-3">
-            <Select label="Example" value={presetId} options={PRESETS.map((p) => ({ value: p.id, label: p.label }))} onChange={loadPreset} />
+            <Select
+              label="Example"
+              value={presetId}
+              options={[...(presetId ? [] : [{ value: "", label: "Shared set" }]), ...PRESETS.map((p) => ({ value: p.id, label: p.label }))]}
+              onChange={loadPreset}
+            />
             <div className="flex flex-col gap-1">
               <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted">Mode</span>
               <div role="group" aria-label="Mode" className="flex h-9 overflow-hidden rounded-md border border-line bg-surface text-sm">
@@ -224,6 +256,13 @@ export function CallbackApp() {
               ) : (
                 "Check"
               )}
+            </button>
+            <button
+              onClick={copyLink}
+              className="flex h-9 items-center gap-2 rounded-md border border-line bg-surface px-3 text-sm text-muted transition-colors hover:border-muted hover:text-ink"
+            >
+              {copied ? <Check size={14} /> : <LinkIcon size={14} />}
+              {copied ? "Copied" : "Copy link"}
             </button>
           </div>
 

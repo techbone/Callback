@@ -33,7 +33,8 @@ Qloo affinity measures *liking*, not *recognition*. "Lands" is therefore a proxy
 | Editor, underlines, swap popover, Crowd Card | Working |
 | Reference extraction (Claude) | Working; falls back to a keyword matcher without `ANTHROPIC_API_KEY` |
 | Qloo scoring | **Running on built-in demo data** (labelled "Demo data" in the UI). The live client lands once the hackathon key arrives |
-| Tour mode (one set across several cities) | Planned |
+| Tour mode (one set across several cities, reference by city grid) | Working |
+| Share links (set, room and tour in the URL hash) | Working |
 
 The demo fixtures in `src/lib/qloo/fixtures.ts` are invented numbers for development. They are not Qloo data.
 

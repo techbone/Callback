@@ -72,3 +72,7 @@ body {
 
 .cm-editor { background: transparent; }
 .cm-editor.cm-focused { outline: none; }
+
+@media (max-width: 639px) {
+  .cm-content { padding: 20px 16px !important; }
+}
