@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeLift, computeVerdict } from "./scoring";
+import { computeLift, computeVerdict, explain } from "./scoring";
 
 describe("computeVerdict", () => {
   it("is green when widely known and loved locally", () => {
@@ -29,5 +29,16 @@ describe("computeLift", () => {
   it("handles a zero baseline", () => {
     expect(computeLift(0, 0)).toBe(1);
     expect(computeLift(0.2, 0)).toBe(Infinity);
+  });
+});
+
+describe("explain", () => {
+  it("names the reason a reference is red", () => {
+    expect(explain(0.1, 3, "red")).toMatch(/Too few/);
+    expect(explain(0.9, 0.5, "red")).toMatch(/less than the country/);
+  });
+  it("separates the two kinds of yellow", () => {
+    expect(explain(0.35, 1.6, "yellow")).toMatch(/not enough people/);
+    expect(explain(0.8, 1.0, "yellow")).toMatch(/no keener/);
   });
 });

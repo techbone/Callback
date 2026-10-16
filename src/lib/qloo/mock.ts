@@ -49,12 +49,12 @@ export class MockQlooClient implements QlooClient {
       .filter(({ overlap }) => overlap > 0)
       .map(({ x, overlap }) => {
         const a = affinityOf(x, room);
-        return { entity: toEntity(x), ...a, lift: computeLift(a.local, a.baseline), overlap };
+        return { overlap, candidate: { entity: toEntity(x), ...a, lift: computeLift(a.local, a.baseline) } };
       })
-      .filter((c) => c.lift >= 1.25)
-      .sort((a, b) => b.overlap - a.overlap || b.lift - a.lift)
+      .filter(({ candidate }) => candidate.lift >= 1.25)
+      .sort((a, b) => b.overlap - a.overlap || b.candidate.lift - a.candidate.lift)
       .slice(0, take)
-      .map(({ overlap: _o, ...c }) => c);
+      .map(({ candidate }) => candidate);
   }
 
   async crowd(type: QlooType, room: Room, take: number): Promise<Candidate[]> {

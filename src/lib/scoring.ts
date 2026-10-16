@@ -25,3 +25,16 @@ export function computeVerdict(known: number, lift: number, t = THRESHOLDS): Ver
   if (known >= t.knownHi && lift >= t.liftHi) return "green";
   return "yellow";
 }
+
+/** One plain sentence on why a reference got its verdict. */
+export function explain(known: number, lift: number, verdict: Verdict, t = THRESHOLDS): string {
+  if (verdict === "green") return "Widely known, and this room likes it more than the country does.";
+  if (verdict === "yellow") {
+    return lift >= t.liftHi
+      ? "This room likes it, but not enough people will recognise it."
+      : "Widely known, but this room is no keener on it than the country is.";
+  }
+  return known < t.knownLo
+    ? "Too few people in this room will know it."
+    : "This room likes it less than the country does.";
+}
