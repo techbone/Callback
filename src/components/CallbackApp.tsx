@@ -6,11 +6,14 @@ import { CrowdCard } from "./CrowdCard";
 import { Editor, type EditorHandle, type Mark, type MarkClick } from "./Editor";
 import { RefPopover } from "./RefPopover";
 import { Select } from "./Select";
+import { TourGrid, worst } from "./TourGrid";
 import { PRESETS } from "@/lib/presets";
 import { DEMO_CITIES } from "@/lib/qloo/fixtures";
 import { AGE_BANDS, AGE_LABELS, type AgeBand, type Candidate, type CheckResult, type Reference, type Room, roomKey } from "@/lib/types";
 
 type Status = "idle" | "loading" | "error";
+type Mode = "room" | "tour";
+const DEFAULT_TOUR = ["Atlanta", "Boston", "Chicago", "Houston"];
 type Open = MarkClick & { reference: Reference };
 
 const LEGEND = [
@@ -29,13 +32,15 @@ export function CallbackApp() {
   const [stale, setStale] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
   const [open, setOpen] = useState<Open | null>(null);
+  const [mode, setMode] = useState<Mode>("room");
+  const [tour, setTour] = useState<string[]>(DEFAULT_TOUR);
 
   const text = useRef(first.text);
   const editor = useRef<EditorHandle>(null);
   const frame = useRef<HTMLDivElement>(null);
   const seq = useRef(0);
 
-  const run = useCallback(async (t: string, r: Room) => {
+  const run = useCallback(async (t: string, rooms: Room[]) => {
     if (!t.trim()) {
       setResult(null);
       setStatus("idle");
@@ -48,7 +53,7 @@ export function CallbackApp() {
       const res = await fetch("/api/check", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ text: t, rooms: [r] }),
+        body: JSON.stringify({ text: t, rooms }),
       });
       if (!res.ok) throw new Error(String(res.status));
       const data = (await res.json()) as CheckResult;
@@ -62,11 +67,26 @@ export function CallbackApp() {
   }, []);
 
   useEffect(() => {
-    void run(first.text, first.room);
+    void run(first.text, [first.room]);
   }, [run, first]);
 
-  const key = roomKey(room);
-  const scoreFor = useCallback((ref: Reference) => ref.scores.find((s) => s.roomKey === key), [key]);
+  const roomsFor = useCallback(
+    (m: Mode, r: Room, cities: string[]): Room[] => (m === "tour" ? cities.map((city) => ({ ...r, city })) : [r]),
+    [],
+  );
+  const activeRooms = useMemo(() => roomsFor(mode, room, tour), [mode, room, tour, roomsFor]);
+  const keys = useMemo(() => new Set(activeRooms.map(roomKey)), [activeRooms]);
+
+  /** In one-room mode the score for that room; in tour mode the weakest room. */
+  const scoreFor = useCallback(
+    (ref: Reference) => {
+      const mine = ref.scores.filter((s) => keys.has(s.roomKey));
+      const w = worst(mine.map((s) => s.verdict));
+      return mine.find((s) => s.verdict === w);
+    },
+    [keys],
+  );
+  const roomOf = (score: { roomKey: string }) => activeRooms.find((r) => roomKey(r) === score.roomKey) ?? room;
 
   const marks: Mark[] = useMemo(
     () =>
@@ -86,7 +106,26 @@ export function CallbackApp() {
   const changeRoom = (patch: Partial<Room>) => {
     const next = { ...room, ...patch };
     setRoom(next);
-    void run(text.current, next);
+    void run(text.current, roomsFor(mode, next, tour));
+  };
+
+  const changeMode = (m: Mode) => {
+    setMode(m);
+    void run(text.current, roomsFor(m, room, tour));
+  };
+
+  const toggleCity = (city: string) => {
+    const next = tour.includes(city) ? tour.filter((c) => c !== city) : [...tour, city];
+    if (next.length === 0) return;
+    setTour(next);
+    void run(text.current, roomsFor("tour", room, next));
+  };
+
+  const openCity = (city: string) => {
+    const next = { ...room, city };
+    setRoom(next);
+    setMode("room");
+    void run(text.current, [next]);
   };
 
   const loadPreset = (id: string) => {
@@ -97,13 +136,13 @@ export function CallbackApp() {
     setRoom(p.room);
     text.current = p.text;
     setResult(null);
-    void run(p.text, p.room);
+    void run(p.text, roomsFor(mode, p.room, tour));
   };
 
   const onSwap = (c: Candidate) => {
     if (!open) return;
     editor.current?.replace(open.from, open.to, c.entity.name);
-    void run(text.current, room);
+    void run(text.current, activeRooms);
   };
 
   const onMarkClick = (click: MarkClick) => {
@@ -136,7 +175,7 @@ export function CallbackApp() {
         )}
       </header>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+      <div className={`grid gap-6 ${mode === "room" ? "lg:grid-cols-[1fr_320px]" : ""}`}>
         <main>
           <h1 className="font-display text-[34px] font-semibold leading-[1.1] tracking-[-0.02em] sm:text-[40px]">
             Will this reference land in the room?
@@ -147,7 +186,24 @@ export function CallbackApp() {
 
           <div className="mt-6 flex flex-wrap items-end gap-3">
             <Select label="Example" value={presetId} options={PRESETS.map((p) => ({ value: p.id, label: p.label }))} onChange={loadPreset} />
-            <Select label="City" value={room.city} options={DEMO_CITIES.map((c) => ({ value: c, label: c }))} onChange={(city) => changeRoom({ city })} />
+            <div className="flex flex-col gap-1">
+              <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted">Mode</span>
+              <div role="group" aria-label="Mode" className="flex h-9 overflow-hidden rounded-md border border-line bg-surface text-sm">
+                {(["room", "tour"] as const).map((m) => (
+                  <button
+                    key={m}
+                    aria-pressed={mode === m}
+                    onClick={() => changeMode(m)}
+                    className={`px-3 transition-colors ${mode === m ? "bg-ink text-bg" : "text-muted hover:text-ink"}`}
+                  >
+                    {m === "room" ? "One room" : "Tour"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {mode === "room" && (
+              <Select label="City" value={room.city} options={DEMO_CITIES.map((c) => ({ value: c, label: c }))} onChange={(city) => changeRoom({ city })} />
+            )}
             <Select
               label="Age"
               value={room.age}
@@ -155,7 +211,7 @@ export function CallbackApp() {
               onChange={(age) => changeRoom({ age: age as AgeBand })}
             />
             <button
-              onClick={() => run(text.current, room)}
+              onClick={() => run(text.current, activeRooms)}
               disabled={status === "loading"}
               className={`h-9 rounded-md px-4 text-sm font-medium transition-colors disabled:opacity-60 ${
                 stale ? "bg-ink text-bg" : "border border-line bg-surface text-ink hover:border-muted"
@@ -170,6 +226,24 @@ export function CallbackApp() {
               )}
             </button>
           </div>
+
+          {mode === "tour" && (
+            <div className="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label="Tour stops">
+              <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted">Stops</span>
+              {DEMO_CITIES.map((c) => (
+                <button
+                  key={c}
+                  aria-pressed={tour.includes(c)}
+                  onClick={() => toggleCity(c)}
+                  className={`h-7 rounded-full border px-3 text-xs transition-colors ${
+                    tour.includes(c) ? "border-ink bg-ink text-bg" : "border-line text-muted hover:border-muted hover:text-ink"
+                  }`}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          )}
 
           <div ref={frame} className="relative mt-4 rounded-lg border border-line bg-surface">
             <Editor
@@ -188,7 +262,7 @@ export function CallbackApp() {
               <>
                 <div className="fixed inset-0 z-10" onMouseDown={() => setOpen(null)} />
                 <div className="absolute z-20" style={{ top: pos.top, left: pos.left }}>
-                  <RefPopover reference={open.reference} score={openScore} room={room} onSwap={onSwap} />
+                  <RefPopover reference={open.reference} score={openScore} room={roomOf(openScore)} onSwap={onSwap} />
                 </div>
               </>
             )}
@@ -208,10 +282,14 @@ export function CallbackApp() {
                 : stale
                   ? "Edited since last check"
                   : result
-                    ? `${marks.length} references · ${tally.green} land · ${tally.yellow} shaky · ${tally.red} die`
+                    ? mode === "tour"
+                      ? `${marks.length} references · ${tally.green} land everywhere · ${tally.yellow} shaky · ${tally.red} die somewhere`
+                      : `${marks.length} references · ${tally.green} land · ${tally.yellow} shaky · ${tally.red} die`
                     : ""}
             </p>
           </div>
+
+          {mode === "tour" && result && <TourGrid references={result.references} cities={tour} onPick={openCity} />}
 
           <p className="mt-10 max-w-[62ch] text-xs leading-relaxed text-muted">
             How it works: each reference is matched to a Qloo entity, then scored by popularity and by how far this room’s affinity sits above the national
@@ -219,9 +297,11 @@ export function CallbackApp() {
           </p>
         </main>
 
-        <div className="lg:pt-[7px]">
-          <CrowdCard city={room.city} age={room.age} />
-        </div>
+        {mode === "room" && (
+          <div className="lg:pt-[7px]">
+            <CrowdCard city={room.city} age={room.age} />
+          </div>
+        )}
       </div>
     </div>
   );
