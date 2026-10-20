@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { QuotaLow } from "@/lib/qloo/live";
 import { z } from "zod";
 import { checkText } from "@/lib/agent/check";
 import { withTrace } from "@/lib/qloo/trace";
@@ -27,6 +28,7 @@ export async function POST(req: Request) {
     const { value, trace } = await withTrace(() => checkText(parsed.data.text, parsed.data.rooms));
     return NextResponse.json(value.source === "live" ? { ...value, trace } : value);
   } catch (err) {
+    if (err instanceof QuotaLow) return NextResponse.json({ error: "quota" }, { status: 503 });
     console.error("check failed", err);
     return NextResponse.json({ error: "Check failed" }, { status: 502 });
   }

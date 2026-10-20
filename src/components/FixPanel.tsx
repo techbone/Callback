@@ -48,6 +48,7 @@ export function FixPanel({ state, onUndo, onClose }: { state: FixState; onUndo: 
                   </span>
                 </p>
                 {s.why && <p className="mt-1 text-muted">{s.why}</p>}
+                {s.note && <p className="mt-1 text-yellow">{s.note}</p>}
                 <p className="mt-1.5 text-[11px] uppercase tracking-[0.08em] text-muted">{s.by === "rules" ? "Picked by rule" : `Picked by ${s.by}`}</p>
               </div>
             )}

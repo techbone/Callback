@@ -1,17 +1,30 @@
 import { chatJSON, llmConfigured } from "../llm";
 import { TYPE_LABEL } from "../labels";
 import type { Candidate, CheckResult, Entity, Room } from "../types";
+import { CITY_NAMES } from "../cities";
 import { checkText, findSwaps } from "./check";
 
 export type FixStep =
   | { kind: "plan"; red: number; total: number; city: string }
-  | { kind: "swap"; surface: string; to: string; rank: number; of: number; why: string; by: string; before: string; after: string }
+  | { kind: "swap"; surface: string; to: string; rank: number; of: number; why: string; by: string; before: string; after: string; note?: string }
   | { kind: "keep"; surface: string; why: string; by: string }
   | { kind: "done"; text: string; result: CheckResult; swapped: number };
 
 export type DecisionInput = { sentence: string; surface: string; entity: Entity; city: string; candidates: Candidate[] };
 export type Decision = { pick: number; sentence: string; why: string; by: string };
 export type Decider = (input: DecisionInput) => Promise<Decision | null>;
+
+/** Other cities named in a sentence: the swap is scored for one room, so the line may be about somewhere else. */
+export function otherCitiesIn(sentence: string, room: string): string[] {
+  return CITY_NAMES.filter((c) => c !== room && new RegExp(`\\b${c}\\b`, "i").test(sentence));
+}
+
+/** The paragraph (blank-line separated) around a span. */
+export function paragraphAround(text: string, start: number, end: number): string {
+  const before = text.slice(0, start).lastIndexOf("\n\n");
+  const after = text.indexOf("\n\n", end);
+  return text.slice(before < 0 ? 0 : before + 2, after < 0 ? text.length : after);
+}
 
 /** The sentence around a span. Boundaries are . ! ? followed by space and a capital, or a newline. */
 export function sentenceAround(text: string, start: number, end: number): { start: number; end: number } {
@@ -53,6 +66,13 @@ export function rewriteIsFaithful(before: string, after: string, surface: string
   const kept = [...a].filter((w) => ignore.has(w) || b.has(w)).length;
   const added = [...b].filter((w) => !a.has(w) && !ignore.has(w)).length;
   return kept / Math.max(1, a.size) >= 0.85 && added <= 3 && after.length <= before.length * 1.5;
+}
+
+function noteFor(paragraph: string, city: string): string | undefined {
+  const others = otherCitiesIn(paragraph, city);
+  return others.length
+    ? `This part of the set mentions ${others.join(" and ")}. The swap is scored for ${city} only, so check it still fits the story.`
+    : undefined;
 }
 
 /** No LLM: take the best-ranked swap and put its name in place. */
@@ -125,6 +145,7 @@ export async function fixSet(
 
     const span = sentenceAround(text, target.start, target.end);
     const sentence = text.slice(span.start, span.end);
+    const paragraphBefore = paragraphAround(text, target.start, target.end);
     const input: DecisionInput = { sentence, surface: target.surface, entity: target.entity, city: room.city, candidates };
 
     let decision: Decision | null = null;
@@ -156,6 +177,7 @@ export async function fixSet(
       by: decision.by,
       before: sentence,
       after: decision.sentence,
+      note: noteFor(paragraphBefore, room.city),
     });
     result = await checkText(text, [room]);
   }

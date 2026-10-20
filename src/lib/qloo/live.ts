@@ -72,6 +72,15 @@ async function throttle() {
 /** Monthly calls left on the key, from Qloo's response headers. */
 export let monthRemaining: number | null = null;
 
+/** Below this many calls left, stop making new ones so cached examples keep working through judging. */
+export const QUOTA_FLOOR = Number(process.env.QLOO_QUOTA_FLOOR ?? 300);
+
+export class QuotaLow extends Error {
+  constructor() {
+    super("Qloo monthly quota nearly used");
+  }
+}
+
 export class LiveQlooClient implements QlooClient {
   readonly source = "live" as const;
 
@@ -81,6 +90,7 @@ export class LiveQlooClient implements QlooClient {
   ) {}
 
   private async get<T>(path: string, params: Record<string, string> | URLSearchParams, op: QlooOp): Promise<T> {
+    if (monthRemaining !== null && monthRemaining < QUOTA_FLOOR) throw new QuotaLow();
     record(op, false);
     const url = `${this.base}${path}?${new URLSearchParams(params)}`;
     for (let attempt = 0; ; attempt++) {

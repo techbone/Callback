@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { QuotaLow } from "@/lib/qloo/live";
 import { z } from "zod";
 import { findSwaps } from "@/lib/agent/check";
 import { cityByName } from "@/lib/cities";
@@ -26,6 +27,7 @@ export async function POST(req: Request) {
   try {
     return NextResponse.json({ swaps: await findSwaps(parsed.data.entity, parsed.data.room) });
   } catch (err) {
+    if (err instanceof QuotaLow) return NextResponse.json({ error: "quota" }, { status: 503 });
     console.error("swap failed", err);
     return NextResponse.json({ error: "Swap lookup failed" }, { status: 502 });
   }

@@ -18,7 +18,7 @@ How to use it:
 - crowd_card: what a city over-indexes on, for openers and crowd work.
 - fix_set: let Callback's own agent swap everything that dies and return the rewritten text.
 
-Rules: only cite rankings that a tool returned. "Lands" means widely known and this city ranks near the top of ${POOL.length} US cities for it on Qloo affinity. Qloo measures liking, not recognition, so present verdicts as strong estimates. Never rewrite more of the user's text than the reference itself and the grammar around it.`;
+Rules: swaps are scored for one city only, so read the sentence around each swap: if it is about somewhere else or sets up a story ("back home in Boston"), say so and offer to adjust the setup. Only cite rankings that a tool returned. "Lands" means widely known and this city ranks near the top of ${POOL.length} US cities for it on Qloo affinity. Qloo measures liking, not recognition, so present verdicts as strong estimates. Never rewrite more of the user's text than the reference itself and the grammar around it.`;
 
 const VERDICT_WORD: Record<Verdict, "lands" | "shaky" | "dies"> = { green: "lands", yellow: "shaky", red: "dies" };
 
@@ -257,21 +257,21 @@ export function registerCallback(server: McpServer) {
       outputSchema: z.object({
         text: z.string(),
         swapped: z.number(),
-        steps: z.array(z.object({ action: z.enum(["swap", "keep"]), reference: z.string(), replacement: z.string().optional(), why: z.string() })),
+        steps: z.array(z.object({ action: z.enum(["swap", "keep"]), reference: z.string(), replacement: z.string().optional(), why: z.string(), caution: z.string().optional() })),
         stillDies: z.array(z.string()),
       }),
       annotations: { readOnlyHint: true, idempotentHint: false, openWorldHint: true },
     },
     async ({ text, city, age }) => {
-      const steps: { action: "swap" | "keep"; reference: string; replacement?: string; why: string }[] = [];
+      const steps: { action: "swap" | "keep"; reference: string; replacement?: string; why: string; caution?: string }[] = [];
       const out = await fixSet(text, { city, age: age as AgeBand }, {
         onStep: (s) => {
-          if (s.kind === "swap") steps.push({ action: "swap", reference: s.surface, replacement: s.to, why: s.why });
+          if (s.kind === "swap") steps.push({ action: "swap", reference: s.surface, replacement: s.to, why: s.why, ...(s.note ? { caution: s.note } : {}) });
           if (s.kind === "keep") steps.push({ action: "keep", reference: s.surface, why: s.why });
         },
       });
       const stillDies = out.result.references.filter((r) => r.scores[0]?.verdict === "red").map((r) => r.surface);
-      const summary = steps.map((s) => (s.action === "swap" ? `${s.reference} → ${s.replacement}: ${s.why}` : `kept ${s.reference}: ${s.why}`)).join("\n");
+      const summary = steps.map((s) => (s.action === "swap" ? `${s.reference} → ${s.replacement}: ${s.why}${s.caution ? ` ⚠ ${s.caution}` : ""}` : `kept ${s.reference}: ${s.why}`)).join("\n");
       return {
         content: [{ type: "text", text: `${out.swapped} swapped for ${city}.${summary ? `\n${summary}` : ""}\n\n${out.text}` }],
         structuredContent: { text: out.text, swapped: out.swapped, steps, stillDies },

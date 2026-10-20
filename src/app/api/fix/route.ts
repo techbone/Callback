@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { fixSet, type FixStep } from "@/lib/agent/fix";
 import { cityByName } from "@/lib/cities";
+import { QuotaLow } from "@/lib/qloo/live";
 import { clientKey, rateLimit } from "@/lib/ratelimit";
 import { AGE_BANDS } from "@/lib/types";
 
@@ -25,8 +26,12 @@ export async function POST(req: Request) {
       try {
         await fixSet(parsed.data.text, parsed.data.room, { onStep: send });
       } catch (err) {
-        console.error("fix failed", err);
-        send({ kind: "error", message: "The agent stopped early. Try again." });
+        if (err instanceof QuotaLow) {
+          send({ kind: "error", message: "Qloo’s monthly limit is nearly used, so only the cached examples work right now." });
+        } else {
+          console.error("fix failed", err);
+          send({ kind: "error", message: "The agent stopped early. Try again." });
+        }
       } finally {
         controller.close();
       }

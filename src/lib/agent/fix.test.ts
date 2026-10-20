@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PRESETS } from "../presets";
 import { setQloo } from "../qloo";
 import { MockQlooClient } from "../qloo/mock";
-import { fixSet, replaceWithArticle, rewriteIsFaithful, rulesDecider, sentenceAround, type Decider, type FixStep } from "./fix";
+import { fixSet, otherCitiesIn, paragraphAround, replaceWithArticle, rewriteIsFaithful, rulesDecider, sentenceAround, type Decider, type FixStep } from "./fix";
 
 describe("sentenceAround", () => {
   const t = "Back home, Dunkin' is a personality. Here, I walked into a Waffle House at 3 a.m. and the waitress knew me.\n\nNext line.";
@@ -15,6 +15,23 @@ describe("sentenceAround", () => {
     const i = t.indexOf("Dunkin'");
     const s = sentenceAround(t, i, i + 7);
     expect(t.slice(s.start, s.end)).toBe("Back home, Dunkin' is a personality.");
+  });
+});
+
+describe("otherCitiesIn", () => {
+  it("names other cities but not the room's own", () => {
+    expect(otherCitiesIn("I told him I grew up on Wawa hoagies back in Boston.", "Houston")).toEqual(["Boston"]);
+    expect(otherCitiesIn("Houston is hot, Boston is not.", "Houston")).toEqual(["Boston"]);
+    expect(otherCitiesIn("Nothing here.", "Houston")).toEqual([]);
+  });
+});
+
+describe("paragraphAround", () => {
+  it("returns just the blank-line separated paragraph", () => {
+    const t = "First para. Boston.\n\nSecond para with Dunkin'. More.\n\nThird.";
+    const i = t.indexOf("Dunkin'");
+    expect(paragraphAround(t, i, i + 7)).toBe("Second para with Dunkin'. More.");
+    expect(paragraphAround("one paragraph only", 4, 9)).toBe("one paragraph only");
   });
 });
 

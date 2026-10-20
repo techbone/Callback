@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { QuotaLow } from "@/lib/qloo/live";
 import { z } from "zod";
 import { cityByName } from "@/lib/cities";
 import { getQloo } from "@/lib/qloo";
@@ -19,6 +20,7 @@ export async function GET(req: Request) {
     const byType = Object.fromEntries(entries) as Partial<Record<QlooType, Entity[]>>;
     return NextResponse.json({ byType, source: qloo.source });
   } catch (err) {
+    if (err instanceof QuotaLow) return NextResponse.json({ error: "quota" }, { status: 503 });
     console.error("crowd failed", err);
     return NextResponse.json({ error: "Crowd lookup failed" }, { status: 502 });
   }

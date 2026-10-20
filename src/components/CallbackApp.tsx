@@ -35,6 +35,7 @@ export function CallbackApp() {
   const [result, setResult] = useState<CheckResult | null>(null);
   const [stale, setStale] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
+  const [quota, setQuota] = useState(false);
   const [open, setOpen] = useState<Open | null>(null);
   const [mode, setMode] = useState<Mode>("room");
   const [tour, setTour] = useState<string[]>(DEFAULT_TOUR);
@@ -67,9 +68,12 @@ export function CallbackApp() {
       if (mine !== seq.current) return;
       setResult(data);
       setStale(false);
+      setQuota(false);
       setStatus("idle");
-    } catch {
-      if (mine === seq.current) setStatus("error");
+    } catch (err) {
+      if (mine !== seq.current) return;
+      setQuota(err instanceof Error && err.message === "503");
+      setStatus("error");
     }
   }, []);
 
@@ -390,7 +394,9 @@ export function CallbackApp() {
             </ul>
             <p className="tnum text-xs text-muted" aria-live="polite">
               {status === "error"
-                ? "Check failed. Try again."
+                ? quota
+                  ? "Qloo’s monthly limit is nearly used. The examples still work."
+                  : "Check failed. Try again."
                 : stale
                   ? "Edited since last check"
                   : result
