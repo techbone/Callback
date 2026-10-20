@@ -122,7 +122,7 @@ export function explain(known: number, p: Position, verdict: Verdict, city: stri
   if (verdict === "green") return `Widely known, and ${city} is one of the cities that likes it most.`;
   if (verdict === "red") {
     return p.rank <= Math.ceil(p.of / 2)
-      ? `${city} ranks #${p.rank} of ${p.of}, but far behind the city that loves it most, where it really belongs.`
+      ? `${city} ranks #${p.rank} of ${p.of}, well behind the cities that love it most.`
       : `${city} is one of the cities that likes it least.`;
   }
   return p.rank <= Math.ceil(p.of / 2)
