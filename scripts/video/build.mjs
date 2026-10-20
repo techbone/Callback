@@ -1,5 +1,5 @@
 // Assembles cards + app recording + beat into out/callback-demo.mp4
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import ffmpeg from "ffmpeg-static";
 
@@ -9,11 +9,8 @@ const enc = ["-c:v", "libx264", "-preset", "slow", "-crf", "17", "-pix_fmt", "yu
 const fades = (d) => `fade=t=in:st=0:d=${FADE}:color=${BG},fade=t=out:st=${(d - FADE).toFixed(2)}:d=${FADE}:color=${BG}`;
 
 function card(png, seconds, out) {
-  // a slow 2.5% push-in keeps a still card alive
-  const z = `1+0.025*t/${seconds}`;
-  run(["-loop", "1", "-framerate", String(FPS), "-t", String(seconds), "-i", png,
-    "-vf", `scale=w='trunc(1920*(${z})/2)*2':h='trunc(1080*(${z})/2)*2':eval=frame:flags=lanczos,crop=1920:1080,${fades(seconds)},format=yuv420p`,
-    ...enc, out]);
+  // still image, faded in and out. (A slow zoom here shook: scaling moves in whole pixels.)
+  run(["-loop", "1", "-framerate", String(FPS), "-t", String(seconds), "-i", png, "-vf", `scale=1920:1080:flags=lanczos,${fades(seconds)},format=yuv420p`, ...enc, out]);
   return seconds;
 }
 
@@ -44,7 +41,13 @@ run(["-f", "concat", "-safe", "0", "-i", "out/segments.txt", "-c", "copy", "out/
 
 const total = segs.reduce((a, [, d]) => a + d, 0);
 execFileSync("node", ["beat.mjs", String((total + 0.3).toFixed(2)), "out/beat.wav"], { stdio: "inherit" });
+// one fixed gain to -16 LUFS (dynamic loudnorm lifted the quiet intro and outro, and any noise with them)
+const report = spawnSync(ffmpeg, ["-hide_banner", "-nostats", "-i", "out/beat.wav", "-af", "ebur128=framelog=quiet", "-f", "null", "-"], { encoding: "utf8" }).stderr;
+const lufs = Number(/I:\s+(-?[\d.]+) LUFS/.exec(report)?.[1]);
+if (!Number.isFinite(lufs)) throw new Error("could not measure the beat's loudness");
+const gain = -16 - lufs;
 run(["-i", "out/video-silent.mp4", "-i", "out/beat.wav",
-  "-filter_complex", "[1:a]aformat=channel_layouts=stereo,loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo[a]",
+  "-filter_complex", `[1:a]volume=${gain.toFixed(2)}dB,alimiter=limit=0.89:level=false,aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo[a]`,
   "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", "out/callback-demo.mp4"]);
+console.log(`music: measured ${lufs} LUFS, applied ${gain.toFixed(2)} dB`);
 console.log(`done: ${total.toFixed(1)}s -> out/callback-demo.mp4`);

@@ -1,4 +1,5 @@
 // Original lo-fi beat, synthesized sample by sample. No samples or loops from anywhere.
+// (No vinyl hiss: it read as background noise under the music.)
 //   node beat.mjs <seconds> <out.wav>
 import { writeFileSync } from "node:fs";
 
@@ -101,15 +102,6 @@ for (let b = 0; b < bars; b++) {
       hat(t + BEAT * (Math.floor(e / 2) + off), (e % 2 === 0 ? 0.16 : 0.1) * (0.8 + 0.4 * rand()));
     }
   }
-}
-
-// vinyl: low hiss and sparse crackle
-let hiss = 0;
-for (let i = 0; i < N; i++) {
-  hiss += 0.05 * ((rand() * 2 - 1) - hiss);
-  let v = hiss * 0.02;
-  if (rand() < 0.00012) v += (rand() * 2 - 1) * 0.12;
-  L[i] += v; R[i] += v * 0.9;
 }
 
 // mix: duck keys under the kick, saturate softly, normalise, fade
