@@ -14,3 +14,12 @@ node build.mjs                          # cards + recording + an original synthe
 
 - `beat.mjs` synthesizes the lo-fi beat sample by sample (drums, bass, electric-piano chords, vinyl hiss). It's original audio, so there's nothing to clear for copyright.
 - Output: 1920×1080, 30 fps, H.264 + AAC, about −16 LUFS.
+
+## Voice-over
+
+`voiceover.json` holds the 18 lines and the time each one starts. Paste the lines into Kokoro (https://kokoro-web.app or similar) separated by `[1.2s]`, spelling Qloo as "Clue" so it's pronounced correctly, and download the take.
+
+```bash
+node mix-voice.mjs voice.mp3     # splits the take at the gaps, places each line on its caption,
+                                 # ducks the beat under the voice, sets -16 LUFS, writes out/callback-demo-voiceover.mp4
+```
