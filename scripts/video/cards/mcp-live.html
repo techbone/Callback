@@ -1,0 +1,27 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=1280">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"><link rel="stylesheet" href="base.css">
+<style>
+body{width:1280px;height:720px;padding:0 80px;display:grid;grid-template-columns:430px 1fr;gap:48px;align-items:center}
+h1{font-size:52px;line-height:1.05}.sub{color:var(--muted);font-size:20px;margin-top:16px;line-height:1.45}
+.ask{margin-top:26px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.ask .who{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}.ask p{font-size:17px;margin-top:6px;line-height:1.45}
+.term{background:#1b1a17;color:#ecebe6;border-radius:14px;padding:22px 24px;box-shadow:0 14px 40px rgba(0,0,0,.18)}
+.bar{display:flex;justify-content:space-between;font-size:12.5px;color:#9b978c;padding-bottom:14px;border-bottom:1px solid #2b2a26}
+.sum{font-size:15px;margin:16px 0 12px;color:#ecebe6}
+.row{display:grid;grid-template-columns:22px 1fr;gap:8px;font-size:14.5px;line-height:1.45;padding:7px 0;border-top:1px solid #2b2a26}
+.row .i{font-weight:600}.ok{color:#4cc182}.no{color:#ef6a5c}.dim{color:#9b978c}
+</style></head><body>
+<div>
+  <h1 class="display">Also an MCP server.</h1>
+  <p class="sub">Add one URL in Claude, Cursor or VS Code and your own agent gets Qloo's taste data, through Callback.</p>
+  <div class="ask"><div class="who">You, in your agent</div><p>Will this set work in Houston? Fix whatever dies.</p></div>
+</div>
+<div class="term mono">
+  <div class="bar"><span>check_references · city: Houston</span><span>callback-ecru-one.vercel.app/api/mcp</span></div>
+  <div class="sum">Houston, any age: 1 land, 0 shaky, 3 die.</div>
+  <div class="row"><span class="i no">✕</span><span>Dunkin' <span class="dim">(Dunkin' Donuts)</span>: dies, #6 of 8.<br><span class="dim">Houston is one of the cities that likes it least.</span></span></div>
+  <div class="row"><span class="i no">✕</span><span>Waffle House: dies, #3 of 8.<br><span class="dim">Houston ranks #3 of 8, well behind the cities that love it most.</span></span></div>
+  <div class="row"><span class="i no">✕</span><span>Tom Brady: dies, #5 of 8.<br><span class="dim">Houston is one of the cities that likes it least.</span></span></div>
+  <div class="row"><span class="i ok">✓</span><span>Yellowstone: lands, #2 of 8.<br><span class="dim">Widely known, and Houston is one of the cities that likes it most.</span></span></div>
+</div>
+</body></html>

@@ -48,3 +48,8 @@ scripts/spike-out/
 
 # local qloo response cache
 .cache/
+
+# rendered demo video (upload to YouTube; too big for git)
+demo/
+scripts/video/frames/
+scripts/video/out/
