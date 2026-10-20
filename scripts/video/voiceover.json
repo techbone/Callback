@@ -1,0 +1,23 @@
+{
+  "note": "Target start time (seconds into callback-demo.mp4) and the latest end for each spoken line. Used by mix-voice.mjs to place the Kokoro clips.",
+  "lines": [
+    { "start": 0.6,  "end": 4.0,   "text": "Callback. A spell-checker for cultural references." },
+    { "start": 4.6,  "end": 10.4,  "text": "Every comic has had a reference die. The reference was fine. The room was wrong." },
+    { "start": 10.7, "end": 13.7,  "text": "Paste what you'll say. Pick the room." },
+    { "start": 14.0, "end": 18.5,  "text": "Every reference is checked against Clue's taste data." },
+    { "start": 19.1, "end": 22.4,  "text": "Green lands. Yellow is flat. Red dies here." },
+    { "start": 23.0, "end": 30.0,  "text": "Same set, in Boston, and it nearly flips. Dunkin' lands. Waffle House dies." },
+    { "start": 31.4, "end": 35.4,  "text": "Back in Atlanta. Why does Tom Brady die?" },
+    { "start": 36.1, "end": 39.4,  "text": "Click one: its rank across eight cities." },
+    { "start": 40.0, "end": 44.8,  "text": "Then swaps Atlanta actually loves, with the tags they share." },
+    { "start": 46.6, "end": 57.4,  "text": "Fix my set is an agent that swaps what dies. It picks a quarterback for a guy who throws, and rewrites only that line." },
+    { "start": 58.2, "end": 61.8,  "text": "Every change can be undone." },
+    { "start": 62.6, "end": 69.5,  "text": "Going on tour? Check one set against every city." },
+    { "start": 70.7, "end": 75.9,  "text": "Keep what lands everywhere. Swap the rest, city by city." },
+    { "start": 76.6, "end": 81.4,  "text": "Every verdict is a Clue call, and here's the receipt." },
+    { "start": 83.0, "end": 90.0,  "text": "Every verdict is four Clue calls: search, city rank, age, and swaps." },
+    { "start": 90.5, "end": 96.0,  "text": "It's also an M C P server. Any agent can use Clue through Callback." },
+    { "start": 96.5, "end": 103.0, "text": "Ask it: will this set work in Houston? It answers with real Clue rankings." },
+    { "start": 103.5, "end": 108.8, "text": "Callback. Built on Clue. Try it live. The link is below." }
+  ]
+}
