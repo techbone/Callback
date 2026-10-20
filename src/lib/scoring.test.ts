@@ -81,6 +81,8 @@ describe("explain", () => {
     expect(explain(0.1, { rank: 1, of: 8, lift: 1, spread: 0.04, ofTop: 1 }, "red", "Atlanta")).toMatch(/Too few/);
     expect(explain(1, { rank: 3, of: 8, lift: 1, spread: 0.0002, ofTop: 0.95 }, "yellow", "Atlanta")).toMatch(/same in every city/);
     expect(explain(0.9, { rank: 8, of: 8, lift: 0.6, spread: 0.04, ofTop: 0.5 }, "red", "Boston")).toMatch(/Boston .* least/);
+    // red because one city dominates, not because this one is near the bottom
+    expect(explain(0.9, { rank: 3, of: 8, lift: 1.02, spread: 0.04, ofTop: 0.6 }, "red", "Houston")).toMatch(/#3 of 8, but far behind/);
   });
 });
 
