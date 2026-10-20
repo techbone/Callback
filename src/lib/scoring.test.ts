@@ -27,9 +27,10 @@ describe("verdicts on real Qloo data", () => {
     expect(verdict(1, DUNKIN, "Boston")).toBe("green");
     expect(verdict(1, DUNKIN, "Houston")).toBe("red");
   });
-  it("Portillo's: lands in Chicago, dies in Atlanta", () => {
+  it("Portillo's: lands in Chicago, dies in Atlanta, shaky where it still beats the median", () => {
     expect(verdict(0.83, PORTILLO, "Chicago")).toBe("green");
     expect(verdict(0.83, PORTILLO, "Atlanta")).toBe("red");
+    expect(verdict(0.83, PORTILLO, "Los Angeles")).toBe("yellow");
   });
   it("Starbucks and Taylor Swift play the same everywhere, so they are yellow in every city", () => {
     for (const c of CITIES) {

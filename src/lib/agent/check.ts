@@ -1,7 +1,7 @@
 import { POOL } from "../cities";
 import { getQloo, type QlooClient } from "../qloo";
-import { ageFit, applyAgeFit, computeVerdict, positionIn, THRESHOLDS, type AgeProfile } from "../scoring";
-import type { Candidate as Swap, CheckResult, Entity, Reference, Room, Score } from "../types";
+import { ageFit, applyAgeFit, computeVerdict, positionIn, THRESHOLDS, type AgeProfile, type Profile } from "../scoring";
+import type { Candidate as Swap, CheckResult, CityRow, Entity, Reference, Room, Score } from "../types";
 import { roomKey } from "../types";
 import { extractCandidates, pickEntity, splitOnJoiners, type Candidate } from "./extract";
 
@@ -16,6 +16,7 @@ export async function scoreEntities(
   entities: Entity[],
   rooms: Room[],
   agesOut?: Map<string, AgeProfile>,
+  profilesOut?: Map<string, Profile>,
 ): Promise<Map<string, Score[]>> {
   const out = new Map<string, Score[]>(entities.map((e) => [e.qlooId, []]));
   const cities = [...new Set([...POOL, ...rooms.map((r) => r.city)])];
@@ -33,6 +34,7 @@ export async function scoreEntities(
       for (const e of group) {
         if (ages[e.qlooId]) agesOut?.set(e.qlooId, ages[e.qlooId]);
         const profile = profiles[e.qlooId];
+        if (profile) profilesOut?.set(e.qlooId, profile);
         for (const room of rooms) {
           const list = out.get(e.qlooId)!;
           if (list.some((s) => s.roomKey === roomKey(room))) continue;
@@ -81,12 +83,25 @@ export async function checkText(text: string, rooms: Room[]): Promise<CheckResul
 
   const entities = [...new Map([...resolved.values()].flatMap((e) => (e ? [[e.qlooId, e] as const] : []))).values()];
   const ages = new Map<string, AgeProfile>();
-  const scores = await scoreEntities(qloo, entities, rooms, ages);
+  const profiles = new Map<string, Profile>();
+  const scores = await scoreEntities(qloo, entities, rooms, ages, profiles);
 
   const references: Reference[] = candidates.flatMap((c, i) => {
     const entity = resolved.get(c.surface);
     if (!entity) return [];
-    return [{ id: `r${i}`, start: c.start, end: c.end, surface: c.surface, entity, scores: scores.get(entity.qlooId) ?? [], age: ages.get(entity.qlooId) }];
+    const profile = profiles.get(entity.qlooId);
+    return [
+      {
+        id: `r${i}`,
+        start: c.start,
+        end: c.end,
+        surface: c.surface,
+        entity,
+        scores: scores.get(entity.qlooId) ?? [],
+        cities: profile ? cityRows(entity, profile) : undefined,
+        age: ages.get(entity.qlooId),
+      },
+    ];
   });
   return { references, source: qloo.source };
 }
@@ -111,4 +126,27 @@ export async function findSwaps(entity: Entity, room: Room, take = 3): Promise<S
     })
     .sort((a, b) => rank[a.score.verdict] - rank[b.score.verdict] || b.score.lift - a.score.lift)
     .slice(0, take);
+}
+
+/** Every pool city for one entity, best first. Pure: uses a profile already fetched. */
+export function cityRows(entity: Entity, profile: Profile): CityRow[] {
+  return POOL.flatMap((city) => {
+    const p = positionIn(profile, city);
+    return p ? [{ city, rank: p.rank, of: p.of, lift: p.lift, verdict: computeVerdict(entity.popularity, p) }] : [];
+  }).sort((a, b) => a.rank - b.rank);
+}
+
+/** Resolve a bare name ("Waffle House") to a Qloo entity. */
+export async function resolveName(name: string): Promise<Entity | null> {
+  return pickEntity(name, await getQloo().search(name), { sentenceStart: false });
+}
+
+/** Where a reference lands across the city pool, plus its age profile. */
+export async function whereItLands(entity: Entity): Promise<{ cities: CityRow[]; age: AgeProfile }> {
+  const qloo = getQloo();
+  const [profiles, ages] = await Promise.all([
+    qloo.affinities(entity.type, [entity.qlooId], POOL, "any"),
+    qloo.ageAffinities(entity.type, [entity.qlooId]),
+  ]);
+  return { cities: cityRows(entity, profiles[entity.qlooId] ?? {}), age: ages[entity.qlooId] ?? {} };
 }

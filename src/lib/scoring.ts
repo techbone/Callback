@@ -55,8 +55,10 @@ export const THRESHOLDS = {
   /** from this share down (0 = best, 1 = worst), and below the median city, counts as "dies here" */
   bottomShare: 0.4,
   liftHi: 1.15,
-  /** outside the top share, a city this far below the strongest one counts as "dies here" */
+  /** outside the top share, a city this far below the strongest one counts as "dies here"... */
   farBelowTop: 0.7,
+  /** ...unless it still beats the median city by this much */
+  farBelowTopMaxLift: 1.1,
 } as const;
 
 /**
@@ -97,7 +99,7 @@ export function computeVerdict(known: number, p: Position, t = THRESHOLDS): Verd
   const share = p.of > 1 ? (p.rank - 1) / (p.of - 1) : 0;
   if (share <= t.topShare && p.lift >= t.liftHi) return known >= t.knownHi ? "green" : "yellow";
   if (share >= t.bottomShare && p.lift < 1) return "red";
-  if (share > t.topShare && p.ofTop < t.farBelowTop) return "red";
+  if (share > t.topShare && p.ofTop < t.farBelowTop && p.lift < t.farBelowTopMaxLift) return "red";
   return "yellow";
 }
 

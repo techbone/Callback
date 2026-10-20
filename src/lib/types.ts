@@ -63,6 +63,9 @@ export type Score = {
   verdict: Verdict;
 };
 
+/** How a reference plays in one pool city. */
+export type CityRow = { city: string; rank: number; of: number; lift: number; verdict: Verdict };
+
 export type Reference = {
   id: string;
   start: number;
@@ -71,6 +74,8 @@ export type Reference = {
   entity: Entity;
   /** one per room; a room is missing when Qloo has no location data for it */
   scores: Score[];
+  /** the reference across every pool city, best first ("where it lands") */
+  cities?: CityRow[];
   /** age-only affinity, when the rooms have an age band */
   age?: Partial<Record<"35_and_younger" | "36_to_55" | "55_and_older", number | null>>;
 };
