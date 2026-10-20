@@ -43,7 +43,7 @@ const FIRST_NAMES = new Set(
 const CITY_SET = new Set(CITY_NAMES.map((c) => c.toLowerCase()));
 
 // a run of Capitalised words, allowing short lowercase joiners ("Parks and Recreation", "House of Cards")
-const RUN = /[A-Z][\w'’&-]*(?:[ \t]+(?:(?:of|the|and|de|la|on|in|&)[ \t]+)?[A-Z][\w'’&-]*)*/g;
+const RUN = /\p{Lu}[\p{L}\p{N}'’&-]*(?:[ \t]+(?:(?:of|the|and|de|la|on|in|&)[ \t]+)?\p{Lu}[\p{L}\p{N}'’&-]*)*/gu;
 
 export function extractCandidates(text: string): Candidate[] {
   const out: Candidate[] = [];
@@ -78,6 +78,8 @@ const TYPE_ORDER: QlooType[] = ["brand", "tv_show", "movie", "artist", "podcast"
 
 const norm = (s: string) =>
   s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // Beyoncé -> beyonce
     .toLowerCase()
     .replace(/[’]/g, "'")
     .replace(/[^a-z0-9' ]/g, "")
@@ -91,21 +93,25 @@ const norm = (s: string) =>
  */
 export function pickEntity(surface: string, results: Entity[], opts: { sentenceStart: boolean }): Entity | null {
   const s = norm(surface);
+  const noThe = (x: string) => x.replace(/^the /, "");
   const scored = results.flatMap((e) => {
     const n = norm(e.name);
     const exact = n === s || n.replace(/'/g, "") === s.replace(/'/g, "");
+    // Qloo often titles shows "The ..." where people drop the article ("Real Housewives of Atlanta")
+    const loose = !exact && noThe(n) === noThe(s);
     // prefixes only for brands: "Dunkin'" -> "Dunkin' Donuts", but not "Red Rocks" -> "Red Rocks Live in VR"
-    const prefix = !exact && e.type === "brand" && s.length >= 6 && n.startsWith(s + " ");
-    if (!exact && !prefix) return [];
+    const prefix = !exact && !loose && e.type === "brand" && s.length >= 6 && n.startsWith(s + " ");
+    if (!exact && !loose && !prefix) return [];
     const typeRank = TYPE_ORDER.indexOf(e.type);
     if (typeRank < 0) return [];
-    return [{ e, exact, typeRank }];
+    return [{ e, exact, loose, typeRank }];
   });
   // single capitalised words at the start of a sentence are often just words; demand a well-known match
   // obscure exact matches are usually the wrong thing (e.g. "Red Rocks" the 0.24 book)
   const minPop = opts.sentenceStart && !surface.includes(" ") ? 0.6 : 0.3;
   const ok = scored.filter((x) => x.e.popularity >= minPop);
-  ok.sort((a, b) => Number(b.exact) - Number(a.exact) || a.typeRank - b.typeRank || b.e.popularity - a.e.popularity);
+  // exact names beat "The ..." variants (so "Future" stays the artist, not the film "The Future")
+  ok.sort((a, b) => Number(b.exact) - Number(a.exact) || Number(b.loose) - Number(a.loose) || a.typeRank - b.typeRank || b.e.popularity - a.e.popularity);
   return ok[0]?.e ?? null;
 }
 

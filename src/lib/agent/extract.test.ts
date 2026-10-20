@@ -23,6 +23,12 @@ describe("extractCandidates", () => {
   it("keeps joiners inside titles", () => {
     expect(surfaces("We binged Parks and Recreation all week.")).toEqual(["Parks and Recreation"]);
   });
+  it("keeps accented letters whole", () => {
+    const t = "We listened to Beyoncé all the way home.";
+    const [c] = extractCandidates(t);
+    expect(c.surface).toBe("Beyoncé");
+    expect(t.slice(c.start, c.end)).toBe("Beyoncé");
+  });
   it("keeps The in titles and ignores number words", () => {
     expect(surfaces("Twenty years later, you watch The Bear like homework.")).toEqual(["The Bear"]);
   });
@@ -44,6 +50,12 @@ describe("pickEntity", () => {
   it("accepts a prefix match for a shortened brand name, and only for brands", () => {
     expect(pickEntity("Dunkin'", [e("Dunkin' Donuts", "brand", 1)], { sentenceStart: false })?.name).toBe("Dunkin' Donuts");
     expect(pickEntity("Red Rocks", [e("Red Rocks Live in VR", "movie", 0.8)], { sentenceStart: false })).toBeNull();
+  });
+  it("matches across diacritics and a dropped leading The, without letting it beat an exact name", () => {
+    expect(pickEntity("Beyoncé", [e("Beyonce", "artist", 1)], { sentenceStart: false })?.name).toBe("Beyonce");
+    expect(pickEntity("Real Housewives of Atlanta", [e("The Real Housewives of Atlanta", "tv_show", 0.9)], { sentenceStart: false })?.type).toBe("tv_show");
+    const future = [e("The Future", "movie", 0.9), e("Future", "artist", 1)];
+    expect(pickEntity("Future", future, { sentenceStart: false })?.type).toBe("artist");
   });
   it("prefers the TV show over a video game of the same name", () => {
     const r = [e("Love Island", "video_game", 0.97), e("Love Island", "tv_show", 0.61)];
