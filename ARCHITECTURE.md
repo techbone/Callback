@@ -179,6 +179,9 @@ Deadline: **Oct 30, 2026, 11:45pm EDT**. Target submit: Oct 29.
 
 ### Decisions log
 
+- **Oct 20: premise warning.** After testing the MCP connector in Claude, which noticed that a Chick-fil-A swap broke a "grew up in Boston" setup, `fix_set` now flags swaps whose paragraph names another city, and the MCP instructions tell the client to read the setup around each swap.
+- **Oct 20: quota guard.** Below 300 calls left on the Qloo key (`QLOO_QUOTA_FLOOR`), the live client stops making new calls and the app says so. Cached lookups keep working, so the examples survive judging.
+
 - **Oct 20: the agent loop is driven by code; the LLM makes the judgement calls.** Groq's free tier allows 8,000 tokens a minute, so a multi-turn tool-calling conversation would hit the limit. Each decision is one small JSON call (about 250–700 tokens): which swap fits the line, the rewritten sentence, or "none fits". Rewrites that drift from the writer's words are rejected and the rules take over.
 
 - **Oct 20: no paid LLM.** The core runs on Qloo alone; the agent uses a free OpenAI-compatible model with a rules fallback. The Anthropic SDK was removed.
