@@ -68,6 +68,7 @@ body {
 .cb-green { text-decoration-style: solid; text-decoration-color: var(--green); background: var(--green-tint); }
 .cb-yellow { text-decoration-style: dashed; text-decoration-color: var(--yellow); background: var(--yellow-tint); }
 .cb-red { text-decoration-style: wavy; text-decoration-color: var(--red); background: var(--red-tint); }
+.cb-none { text-decoration-style: dotted; text-decoration-color: var(--muted); text-decoration-thickness: 1.5px; }
 .cb-active { outline: 2px solid var(--ink); outline-offset: 1px; }
 
 .cm-editor { background: transparent; }

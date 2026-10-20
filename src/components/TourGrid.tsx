@@ -13,7 +13,7 @@ export function TourGrid({
   cities: string[];
   onPick: (city: string) => void;
 }) {
-  const rows = references.filter((r) => r.entity && r.scores.length);
+  const rows = references.filter((r, i, all) => r.scores.length && all.findIndex((x) => x.entity.qlooId === r.entity.qlooId) === i);
   if (rows.length === 0) return null;
   return (
     <div className="mt-6 overflow-x-auto rounded-lg border border-line bg-surface">
@@ -37,19 +37,22 @@ export function TourGrid({
             return (
               <tr key={ref.id} className="border-b border-line last:border-0">
                 <td className="px-4 py-2.5">
-                  <span className="font-medium">{ref.entity!.name}</span>
-                  <span className="ml-2 text-xs text-muted">{TYPE_LABEL[ref.entity!.type]}</span>
+                  <span className="font-medium">{ref.entity.name}</span>
+                  <span className="ml-2 text-xs text-muted">{TYPE_LABEL[ref.entity.type]}</span>
                 </td>
                 {cities.map((c) => {
                   const s = ref.scores.find((x) => x.roomKey.startsWith(`${c}|`));
                   return (
                     <td key={c} className="px-2 py-2.5 text-center">
                       {s ? (
-                        <span className={`cb-mark tnum !cursor-default px-1.5 text-xs cb-${s.verdict}`} title={`${s.verdict}: lift ${s.lift.toFixed(1)}×`}>
-                          {s.lift.toFixed(1)}×
+                        <span
+                          className={`cb-mark tnum !cursor-default px-1.5 text-xs cb-${s.verdict}`}
+                          title={`${s.verdict}: #${s.rank} of ${s.of}, ${s.lift.toFixed(1)}× the median city`}
+                        >
+                          #{s.rank}
                         </span>
                       ) : (
-                        <span className="text-muted">–</span>
+                        <span className="text-muted" title="No location data">–</span>
                       )}
                     </td>
                   );

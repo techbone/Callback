@@ -45,3 +45,6 @@ next-env.d.ts
 
 # qloo spike output
 scripts/spike-out/
+
+# local qloo response cache
+.cache/

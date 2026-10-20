@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { checkText } from "@/lib/agent/check";
 import { clientKey, rateLimit } from "@/lib/ratelimit";
+import { cityByName } from "@/lib/cities";
 import { AGE_BANDS } from "@/lib/types";
 
 export const maxDuration = 60;
@@ -9,7 +10,7 @@ export const maxDuration = 60;
 const Body = z.object({
   text: z.string().min(1).max(8000),
   rooms: z
-    .array(z.object({ city: z.string().min(1), venue: z.string().optional(), age: z.enum(AGE_BANDS) }))
+    .array(z.object({ city: z.string().refine((c) => !!cityByName(c)), venue: z.string().optional(), age: z.enum(AGE_BANDS) }))
     .min(1)
     .max(6),
 });

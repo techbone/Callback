@@ -9,7 +9,7 @@ import { Select } from "./Select";
 import { TourGrid, worst } from "./TourGrid";
 import { PRESETS } from "@/lib/presets";
 import { decodeShare, encodeShare } from "@/lib/share";
-import { DEMO_CITIES } from "@/lib/qloo/fixtures";
+import { CITY_NAMES } from "@/lib/cities";
 import { AGE_BANDS, AGE_LABELS, type AgeBand, type Candidate, type CheckResult, type Reference, type Room, roomKey } from "@/lib/types";
 
 type Status = "idle" | "loading" | "error";
@@ -117,15 +117,12 @@ export function CallbackApp() {
 
   const marks: Mark[] = useMemo(
     () =>
-      (result?.references ?? []).flatMap((ref) => {
-        const s = scoreFor(ref);
-        return s ? [{ id: ref.id, from: ref.start, to: ref.end, verdict: s.verdict }] : [];
-      }),
+      (result?.references ?? []).map((ref) => ({ id: ref.id, from: ref.start, to: ref.end, verdict: scoreFor(ref)?.verdict ?? "none" })),
     [result, scoreFor],
   );
 
   const tally = useMemo(() => {
-    const t = { green: 0, yellow: 0, red: 0 };
+    const t = { green: 0, yellow: 0, red: 0, none: 0 };
     for (const m of marks) t[m.verdict]++;
     return t;
   }, [marks]);
@@ -143,7 +140,7 @@ export function CallbackApp() {
 
   const toggleCity = (city: string) => {
     const next = tour.includes(city) ? tour.filter((c) => c !== city) : [...tour, city];
-    if (next.length === 0) return;
+    if (next.length === 0 || next.length > 6) return;
     setTour(next);
     void run(text.current, roomsFor("tour", room, next));
   };
@@ -174,7 +171,7 @@ export function CallbackApp() {
 
   const onMarkClick = (click: MarkClick) => {
     const reference = result?.references.find((r) => r.id === click.id);
-    if (reference?.entity) setOpen({ ...click, reference });
+    if (reference) setOpen({ ...click, reference });
   };
 
   const openScore = open ? scoreFor(open.reference) : undefined;
@@ -234,7 +231,7 @@ export function CallbackApp() {
               </div>
             </div>
             {mode === "room" && (
-              <Select label="City" value={room.city} options={DEMO_CITIES.map((c) => ({ value: c, label: c }))} onChange={(city) => changeRoom({ city })} />
+              <Select label="City" value={room.city} options={CITY_NAMES.map((c) => ({ value: c, label: c }))} onChange={(city) => changeRoom({ city })} />
             )}
             <Select
               label="Age"
@@ -269,7 +266,7 @@ export function CallbackApp() {
           {mode === "tour" && (
             <div className="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label="Tour stops">
               <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted">Stops</span>
-              {DEMO_CITIES.map((c) => (
+              {CITY_NAMES.map((c) => (
                 <button
                   key={c}
                   aria-pressed={tour.includes(c)}
@@ -297,11 +294,11 @@ export function CallbackApp() {
               }}
               onMarkClick={onMarkClick}
             />
-            {open && openScore && pos && (
+            {open && pos && (
               <>
                 <div className="fixed inset-0 z-10" onMouseDown={() => setOpen(null)} />
                 <div className="absolute z-20" style={{ top: pos.top, left: pos.left }}>
-                  <RefPopover reference={open.reference} score={openScore} room={roomOf(openScore)} onSwap={onSwap} />
+                  <RefPopover reference={open.reference} score={openScore} room={openScore ? roomOf(openScore) : room} onSwap={onSwap} />
                 </div>
               </>
             )}
@@ -322,8 +319,8 @@ export function CallbackApp() {
                   ? "Edited since last check"
                   : result
                     ? mode === "tour"
-                      ? `${marks.length} references · ${tally.green} land everywhere · ${tally.yellow} shaky · ${tally.red} die somewhere`
-                      : `${marks.length} references · ${tally.green} land · ${tally.yellow} shaky · ${tally.red} die`
+                      ? `${marks.length} references · ${tally.green} land everywhere · ${tally.yellow} shaky · ${tally.red} die somewhere${tally.none ? ` · ${tally.none} no data` : ""}`
+                      : `${marks.length} references · ${tally.green} land · ${tally.yellow} shaky · ${tally.red} die${tally.none ? ` · ${tally.none} no data` : ""}`
                     : ""}
             </p>
           </div>
@@ -331,8 +328,8 @@ export function CallbackApp() {
           {mode === "tour" && result && <TourGrid references={result.references} cities={tour} onPick={openCity} />}
 
           <p className="mt-10 max-w-[62ch] text-xs leading-relaxed text-muted">
-            How it works: each reference is matched to a Qloo entity, then scored by popularity and by how far this room’s affinity sits above the national
-            baseline for the same age band. Affinity measures liking, not recognition, so “lands” is an estimate, not a guarantee.
+            How it works: each reference is matched to a Qloo entity, then ranked by how much this city likes it compared with eight other US cities, with
+            the age band applied on top. Qloo measures liking, not recognition, so “lands” is an estimate, not a guarantee.
           </p>
         </main>
 

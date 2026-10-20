@@ -23,8 +23,6 @@ export type Fixture = {
   ambiguous?: boolean;
 };
 
-export const DEMO_CITIES = ["Atlanta", "Boston", "Chicago", "Houston", "Denver", "New York"] as const;
-
 const f = (x: Fixture) => x;
 
 export const FIXTURES: Fixture[] = [
@@ -78,4 +76,3 @@ export const FIXTURES: Fixture[] = [
   f({ id: "demo:barbie", name: "Barbie", type: "movie", popularity: 0.9, national: 0.44, tags: ["comedy", "fantasy"], cities: { Atlanta: 0.5, Boston: 0.42, Chicago: 0.46, Houston: 0.46, Denver: 0.44, "New York": 0.48 }, age: { "35_and_younger": 1.2 } }),
 ];
 
-export const ALL_TAGS = Array.from(new Set(FIXTURES.flatMap((x) => x.tags)));

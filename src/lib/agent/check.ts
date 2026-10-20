@@ -1,68 +1,114 @@
-import { computeLift, computeVerdict } from "../scoring";
-import { getQloo } from "../qloo";
-import type { CheckResult, Entity, QlooType, Reference, Room, Score } from "../types";
+import { POOL } from "../cities";
+import { getQloo, type QlooClient } from "../qloo";
+import { ageFit, applyAgeFit, computeVerdict, positionIn, THRESHOLDS, type AgeProfile } from "../scoring";
+import type { Candidate as Swap, CheckResult, Entity, Reference, Room, Score } from "../types";
 import { roomKey } from "../types";
-import { extractReferences, locateSpans } from "./extract";
+import { extractCandidates, pickEntity, splitOnJoiners, type Candidate } from "./extract";
 
 /**
- * extract -> resolve -> score. One batched affinity call per (room, type), not
- * one per reference.
+ * Score entities in each room. Location is ranked against the city pool with no
+ * age signal (age swamps location when combined); age is scored separately and
+ * can knock the verdict down a step. Batched: one call per type and city, plus
+ * one per type and age band, all cached per entity.
  */
-export async function checkText(text: string, rooms: Room[]): Promise<CheckResult> {
-  const qloo = getQloo();
-  const spans = locateSpans(text, await extractReferences(text));
+export async function scoreEntities(
+  qloo: QlooClient,
+  entities: Entity[],
+  rooms: Room[],
+  agesOut?: Map<string, AgeProfile>,
+): Promise<Map<string, Score[]>> {
+  const out = new Map<string, Score[]>(entities.map((e) => [e.qlooId, []]));
+  const cities = [...new Set([...POOL, ...rooms.map((r) => r.city)])];
+  const types = [...new Set(entities.map((e) => e.type))];
+  const needAge = rooms.some((r) => r.age !== "any");
 
-  // resolve each distinct surface once
-  const resolved = new Map<string, Entity | undefined>();
   await Promise.all(
-    [...new Set(spans.map((s) => s.surface))].map(async (surface) => {
-      const span = spans.find((s) => s.surface === surface)!;
-      const [best] = await qloo.search(surface, span.guessedType);
-      resolved.set(surface, best);
-    }),
-  );
-
-  // batched scoring: room x type
-  const byType = new Map<QlooType, Set<string>>();
-  for (const e of resolved.values()) {
-    if (!e) continue;
-    if (!byType.has(e.type)) byType.set(e.type, new Set());
-    byType.get(e.type)!.add(e.qlooId);
-  }
-  const scores = new Map<string, Score>(); // `${roomKey}#${entityId}`
-  await Promise.all(
-    rooms.flatMap((room) =>
-      [...byType].map(async ([type, ids]) => {
-        const aff = await qloo.affinities(type, [...ids], room);
-        for (const id of ids) {
-          const a = aff[id];
-          const e = [...resolved.values()].find((x) => x?.qlooId === id)!;
-          if (!a) continue;
-          const lift = computeLift(a.local, a.baseline);
-          scores.set(`${roomKey(room)}#${id}`, {
+    types.map(async (type) => {
+      const group = entities.filter((e) => e.type === type);
+      const ids = [...new Set(group.map((e) => e.qlooId))];
+      const [profiles, ages] = await Promise.all([
+        qloo.affinities(type, ids, cities, "any"),
+        needAge ? qloo.ageAffinities(type, ids) : Promise.resolve({} as Record<string, AgeProfile>),
+      ]);
+      for (const e of group) {
+        if (ages[e.qlooId]) agesOut?.set(e.qlooId, ages[e.qlooId]);
+        const profile = profiles[e.qlooId];
+        for (const room of rooms) {
+          const list = out.get(e.qlooId)!;
+          if (list.some((s) => s.roomKey === roomKey(room))) continue;
+          const pos = profile ? positionIn(profile, room.city) : null;
+          if (!pos) continue;
+          const placeVerdict = computeVerdict(e.popularity, pos);
+          const fit = ageFit(ages[e.qlooId], room.age);
+          list.push({
             roomKey: roomKey(room),
-            local: a.local,
-            baseline: a.baseline,
-            lift,
+            local: profile[room.city] as number,
+            ...pos,
             known: e.popularity,
-            verdict: computeVerdict(e.popularity, lift),
+            placeVerdict,
+            ageFit: fit,
+            verdict: applyAgeFit(placeVerdict, fit),
           });
         }
-      }),
-    ),
+      }
+    }),
   );
+  return out;
+}
 
-  const references: Reference[] = spans.map((s, i) => {
-    const entity = resolved.get(s.surface);
-    return {
-      id: `r${i}`,
-      start: s.start,
-      end: s.end,
-      surface: s.surface,
-      roleInLine: s.roleInLine,
-      entity,
-      scores: entity ? rooms.flatMap((r) => scores.get(`${roomKey(r)}#${entity.qlooId}`) ?? []) : [],
-    };
+/** extract -> resolve -> score */
+export async function checkText(text: string, rooms: Room[]): Promise<CheckResult> {
+  const qloo = getQloo();
+  let candidates = extractCandidates(text);
+
+  const resolved = new Map<string, Entity | null>();
+  const resolveAll = (cs: Candidate[]) =>
+    Promise.all(
+      [...new Set(cs.map((c) => c.surface))]
+        .filter((surface) => !resolved.has(surface))
+        .map(async (surface) => {
+          const sentenceStart = cs.filter((x) => x.surface === surface).every((x) => x.sentenceStart);
+          resolved.set(surface, pickEntity(surface, await qloo.search(surface), { sentenceStart }));
+        }),
+    );
+  await resolveAll(candidates);
+  // joined runs that matched nothing get a second chance as separate pieces
+  const retry = candidates.flatMap((c) => (resolved.get(c.surface) ? [] : splitOnJoiners(c)));
+  if (retry.length) {
+    await resolveAll(retry);
+    candidates = candidates.flatMap((c) => (resolved.get(c.surface) ? [c] : splitOnJoiners(c).filter((p) => resolved.get(p.surface))));
+  }
+
+  const entities = [...new Map([...resolved.values()].flatMap((e) => (e ? [[e.qlooId, e] as const] : []))).values()];
+  const ages = new Map<string, AgeProfile>();
+  const scores = await scoreEntities(qloo, entities, rooms, ages);
+
+  const references: Reference[] = candidates.flatMap((c, i) => {
+    const entity = resolved.get(c.surface);
+    if (!entity) return [];
+    return [{ id: `r${i}`, start: c.start, end: c.end, surface: c.surface, entity, scores: scores.get(entity.qlooId) ?? [], age: ages.get(entity.qlooId) }];
   });
   return { references, source: qloo.source };
+}
+
+const rank = { green: 0, yellow: 1, red: 2 } as const;
+
+/** Same-category swaps this room likes, best first. */
+export async function findSwaps(entity: Entity, room: Room, take = 3): Promise<Swap[]> {
+  const qloo = getQloo();
+  const seen = new Set([entity.name.toLowerCase()]);
+  const pool = (await qloo.similarHere(entity, room, 40)).filter((e) => {
+    const k = e.name.toLowerCase();
+    if (e.qlooId === entity.qlooId || seen.has(k) || e.popularity < THRESHOLDS.knownHi) return false;
+    seen.add(k);
+    return true;
+  });
+  const scores = await scoreEntities(qloo, pool, [room]);
+  return pool
+    .flatMap((e) => {
+      const score = scores.get(e.qlooId)?.[0];
+      return score && score.verdict !== "red" && score.lift > 1 ? [{ entity: e, score }] : [];
+    })
+    .sort((a, b) => rank[a.score.verdict] - rank[b.score.verdict] || b.score.lift - a.score.lift)
+    .slice(0, take);
 }

@@ -6,7 +6,7 @@ import { Decoration, type DecorationSet, EditorView, keymap, placeholder } from 
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import type { Verdict } from "@/lib/types";
 
-export type Mark = { id: string; from: number; to: number; verdict: Verdict };
+export type Mark = { id: string; from: number; to: number; verdict: Verdict | "none" };
 export type MarkClick = { id: string; from: number; to: number; rect: DOMRect };
 export type EditorHandle = { replace: (from: number, to: number, insert: string) => void; setActive: (id: string | null) => void };
 
