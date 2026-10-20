@@ -2,18 +2,18 @@
 
 ## Pitch
 
-Callback is a spell-checker for cultural references. Paste anything written for an audience, such as a stand-up set, a toast, a keynote or a sales pitch, then pick the room: a city, optionally a venue, and an age band. Every reference gets underlined: **green**, this room knows it and loves it; **yellow**, they know it but don't care; **red**, it dies here. Click a red one and Callback suggests a local swap from the same category that this room does love, rewritten into your line. **Tour mode** runs the same set against every stop on a tour and shows a reference × city grid, so a comic knows what to swap in Atlanta and what to keep in Boston.
+Callback is a spell-checker for cultural references. Paste anything written for an audience, such as a stand-up set, a toast, a keynote or a sales pitch, then pick the room: a city and an age band. Every reference gets underlined: **green**, this room knows it and loves it; **yellow**, they know it but don't care; **red**, it dies here. Click a red one and Callback suggests same-category swaps this city does love. **Tour mode** runs one set against every stop on a tour, so a comic knows what to swap in Atlanta and what to keep in Boston. **Fix my set** is an agent that does the swapping for you and shows its work.
 
 ### What makes it different
 
 - **It checks your writing; it doesn't write for you.** The Qloo LLM Hackathon 2025 gallery (343 projects) was crowded with campaign and copy *generators* (Marketly, Qlaire, Cloutware, NexPR, AdBuddy, CulturaSync, and Resonance AI, which won). None checked text the user had already written, inline, reference by reference.
-- **It only works with Qloo.** An LLM can guess clichés ("deep-dish for Chicago"), but it can't score *this list of entities* against *this city and age band* relative to the national baseline. That scoring is the product.
-- **The UI is an editor, not a report.** Underlines are understood instantly, and judges can try it in under 30 seconds with a preloaded set and the city dropdown.
-- **Tour mode** maps onto a real workflow for comics and promoters. Two of the judges are Cedric the Entertainer and Live Nation's EVP of Strategic Initiatives.
+- **It only works with Qloo.** An LLM can guess clichés ("deep-dish for Chicago"). It can't tell you that Wawa is #1 in New York and dies in Atlanta, or that under-35s love *Love Island* and over-55s don't. Qloo's affinity data can, and that scoring is the product.
+- **The UI is an editor, not a report.** Underlines are understood instantly; a judge can try it in under 30 seconds.
+- **It works inside other agents.** An MCP server exposes the same checks to Claude Desktop, Cursor or any MCP client.
 
 ### Honest limitation
 
-Qloo affinity measures *liking*, not *recognition*. We approximate "will land" as **known** (popularity percentile) × **loved here** (local affinity lifted over the national baseline). Every underline shows those numbers, so the proxy is visible, and the README says so plainly.
+Qloo affinity measures *liking*, not *recognition*. "Lands" means: widely known (Qloo popularity) **and** this city ranks near the top of a pool of US cities for it. Every underline shows the rank and numbers behind it. Some very famous entities (*The Office*, Drake, Michael Jordan) carry no city-level data in Qloo; Callback marks those grey ("no data") instead of guessing.
 
 ## System overview
 
@@ -21,187 +21,168 @@ Qloo affinity measures *liking*, not *recognition*. We approximate "will land" a
 flowchart LR
   subgraph Web["Next.js app (Vercel)"]
     ED[Editor\nCodeMirror 6 + decorations]
-    RP[Room picker\ncity · venue · age]
+    RP[Room picker\ncity · age · tour stops]
     TM[Tour grid]
     CC[Crowd Card]
+    FX[Fix my set\nagent steps]
   end
 
   subgraph API["Route handlers /api/*"]
     CHK["/api/check"]
     SWP["/api/swap"]
     CRD["/api/crowd"]
+    FIX["/api/fix (M2)"]
+    MCP["/api/mcp (M3)"]
   end
 
-  subgraph Agent["Callback agent (Claude, tool use)"]
-    EX[extract_references]
-    RS[resolve_entity]
-    SC[score_in_rooms]
-    FS[find_local_swaps]
-    RW[rewrite_line]
+  subgraph Core["Core (no LLM)"]
+    EX[extract\ncapitalised runs]
+    RS[resolve\nQloo /search]
+    SC[score\ncity rank + age]
+    SW[swaps\nsimilar here, re-scored]
   end
 
-  Q[(Qloo Hackathon API\nhackathon.api.qloo.com)]
-  KV[(Upstash Redis\nresponse cache)]
-  FX[(Demo fixtures\nJSON in repo)]
+  LLM[(Free LLM, optional\nOpenAI-compatible: Groq)]
+  Q[(Qloo Hackathon API)]
+  ST[(Cache: memory → seed.json → Upstash)]
 
   ED --> CHK --> EX --> RS --> SC
-  ED -- click red --> SWP --> FS --> RW
-  RP --> CHK
-  TM --> CHK
+  ED -- click a reference --> SWP --> SW
   CC --> CRD
-  RS & SC & FS & CRD --> KV --> Q
-  CHK -. demo mode .-> FX
+  FX --> FIX --> SC & SW
+  FIX -. picks swaps, rewrites line .-> LLM
+  MCP --> SC & SW
+  RS & SC & SW & CRD --> ST --> Q
 ```
 
 ## Components
 
 ### Frontend (Next.js App Router, TypeScript)
 
-- **Editor**: CodeMirror 6 in plain-text, prose-wrapped mode. References are shown as mark decorations. Hovering a mark shows a popover with the verdict, the numbers (popularity percentile, local lift, age delta) and up to 3 swaps with a one-click replace.
-- **Room picker**: city (Qloo locality, via `signal.location.query`), an optional venue (a Qloo place entity), and an age band. The age band is one of Qloo's three values: `35_and_younger`, `36_to_55` or `55_and_older`, plus "any".
-- **Tour mode**: up to 6 cities. A grid with references as rows and cities as columns shows verdict chips. Clicking a cell shows the editor in that room.
-- **Crowd Card**: a side panel listing what this room loves right now (TV, artists, brands, places, people, movies), with trending items flagged. It's material for openers and crowd work.
-- **Presets**: a stand-up set, a wedding toast and a sales pitch, each with a default room. These load from cached fixtures and work without a Qloo key.
+- **Editor**: CodeMirror 6, plain text, prose-wrapped. References are mark decorations: green solid, yellow dashed, red wavy, grey dotted for no data. The shapes differ so colour is never the only signal.
+- **Popover**: the verdict in one sentence, then Known / City rank / Vs typical, and for yellow and red up to 3 swaps with a one-click replace.
+- **Room picker**: 12 US cities and an age band (`35_and_younger`, `36_to_55`, `55_and_older`, or any).
+- **Tour mode**: up to 6 stops. A grid of references × cities with rank chips and a "Swap in X, Y" or "Keep" verdict per row. Clicking a city header opens the set in that room.
+- **Crowd Card**: what the city over-indexes on, for openers and crowd work.
+- **Share links**: text, room and tour compressed into the URL hash.
 
 ### Backend (Next.js route handlers)
 
 | Route | Input | Output |
 |---|---|---|
-| `POST /api/check` | `{ text, rooms: Room[] }` | `References[]` with a `Score` per room |
-| `POST /api/swap` | `{ text, referenceId, room }` | up to 3 `Swap`s with rewritten lines |
-| `GET /api/crowd` | `room` | `CrowdCard` |
+| `POST /api/check` | `{ text, rooms }` | references, each with a score per room |
+| `POST /api/swap` | `{ entity, room }` | up to 3 scored swaps |
+| `GET /api/crowd` | `city` | entities by type |
+| `POST /api/fix` (M2) | `{ text, room }` | streamed agent steps and the fixed text |
+| `/api/mcp` (M3) | MCP over Streamable HTTP | tools `check_set`, `find_swaps`, `crowd_card` |
 
-All Qloo calls go through one `qloo` client that handles the `X-Api-Key` header, retries with backoff, and caches in Redis keyed by a hash of the normalised request (TTL 24h, or 6h for trend calls). The client and a fixture-backed mock share one interface, so work isn't blocked while the key is pending.
+### Core pipeline (no LLM)
 
-### The agent
+1. **Extract** (`src/lib/agent/extract.ts`): runs of capitalised words, with title joiners ("Parks and Recreation"). Sentence openers ("Then …") are stripped; pronouns, common first names, number words and the pool city names are skipped. A joined run that matches nothing is retried as pieces.
+2. **Resolve**: Qloo `/search` restricted to brand, TV, movie, artist, person, podcast, video game and book. Unfiltered search returns individual store locations first, which have no location data. Exact names beat brand prefixes ("Dunkin'" → Dunkin' Donuts); then type order; matches under 0.3 popularity are rejected as probably wrong.
+3. **Score** (`src/lib/scoring.ts`): see below.
+4. **Swaps**: `/v2/insights` with `signal.interests.entities` (the original) and the city's location, take 40, then each candidate is scored with the same method. Only well-known candidates that rank above the median city are offered.
 
-Claude, using tool use, runs the reasoning steps. The Qloo math happens inside tools, in deterministic code.
+### The agent: "Fix my set" (M2)
 
-1. **`extract_references`**: the LLM returns spans for every cultural reference: `{ start, end, surface, guessedType, roleInLine }`. `guessedType` is one of the Qloo types (`brand`, `place`, `tv_show`, `movie`, `artist`, `person`, `podcast`, `video_game`, `book`, `destination`). `roleInLine` is a short note such as "punchline target", "relatable shorthand for cheap" or "status symbol", which later guides swaps.
-2. **`resolve_entity`**: Qloo `/search` by name and type. The LLM breaks ties when several candidates match (Atlanta the show vs. Atlanta the place). Results that can't be resolved are left unmarked rather than guessed.
-3. **`score_in_rooms`**: deterministic batched scoring (see Scoring below).
-4. **`find_local_swaps`**: takes the original entity's tags, then calls `/v2/insights` with the same `filter.type` and `filter.tags`/`signal.interests.tags`, plus the room's `signal.location.query` and age band, and `filter.popularity.min`. It scores the candidates against the baseline and keeps the ones with high lift.
-5. **`rewrite_line`**: the LLM picks the 3 candidates that best fit `roleInLine` and rewrites only the reference span, keeping the writer's voice. It may not change anything else in the line.
+A tool-using loop over the core:
 
-### External services
+- **Tools**: `check_set`, `find_swaps(reference, city)`, `apply_swap(reference, replacement, rewritten_sentence)`.
+- **Loop**: check → pick the worst reference → fetch swaps → choose the one that fits the joke → rewrite only that sentence → re-check → repeat until nothing is red or 6 steps have run. Each step streams to the UI.
+- **Brain**: any OpenAI-compatible endpoint (`LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`), Groq's free tier by default. The LLM's job is judgement Qloo can't give: the swap has to fit the line ("a guy who throws" needs a quarterback, not a running back), and grammar has to survive ("a Waffle House" → "an Applebee's").
+- **Fallback**: no key, quota spent or a bad response → the same loop runs with rules (best-ranked green swap, name replaced in place). The demo never breaks; it's just less clever.
 
-- **Qloo Hackathon API** (`https://hackathon.api.qloo.com`, `X-Api-Key` header): `/search`, `/v2/insights`, `/v2/tags`.
-- **Anthropic API**: extraction, disambiguation, swap selection and line rewrites. The model is chosen at M1, with a small, fast model for extraction.
-- **Upstash Redis**: cache and per-IP rate limiting, so judges don't burn through the Qloo quota.
-- **Vercel**: hosting.
+### MCP server (M3)
+
+Exposes the core as tools at `/api/mcp`, so any MCP client (Claude Desktop, Cursor, ChatGPT connectors) can check and fix text. This is the hackathon's "integrate Qloo into an existing agent" path; the client's own model does the reasoning, so it costs us nothing.
 
 ## Scoring
 
-For a room R (location L, age band A) and resolved references grouped by type T:
+Qloo exposes no national baseline: an insights call with no signal returns no affinity. So a reference is judged by **where this city ranks among a pool of cities**.
 
-1. **Local**: `GET /v2/insights?filter.type=T&filter.results.entities=<ids>&signal.location.query=L&signal.demographics.age=A`, giving each entity's local affinity.
-2. **Baseline**: the same call without the location, giving national affinity for the same age band.
-3. **Per entity**:
-   - `known` = Qloo popularity percentile (0–1)
-   - `lift` = local affinity / baseline affinity
-   - `ageDelta` = affinity with age band A vs. with no age signal (shown only)
-4. **Verdict** (thresholds calibrated in M2 against a hand-labelled set of ~60 references):
-   - **green**: `known ≥ K_hi` and `lift ≥ L_hi`
-   - **yellow**: `known ≥ K_lo` and `lift` between `L_lo` and `L_hi`
-   - **red**: `known < K_lo`, or `lift < L_lo`
+1. **Location profile**: for each entity type, one batched call per pool city: `filter.type`, `filter.results.entities=<ids>`, `signal.location=POINT(lon lat)`, `signal.location.radius=40000`. The pool is Atlanta, Boston, Chicago, Denver, Houston, Los Angeles, New York and Seattle, plus the room city if it's outside the pool. (`signal.location.query=<city>` silently drops many entities, e.g. Starbucks in Atlanta; the WKT point does not.)
+2. **Strength**: affinities bunch near 1 (0.96 vs 0.9998), so they're stretched with `-log10(1 - a)`.
+3. **Position**: rank in the pool, lift over the median city, raw spread across cities, and share of the top city's strength.
+4. **Verdict**:
+   - red if popularity < 0.25
+   - yellow if the raw spread is < 0.005 (it plays the same everywhere: Starbucks, Taylor Swift)
+   - green if in the top quarter of the pool, lift ≥ 1.15 and popularity ≥ 0.5
+   - red if in the bottom 60% and below the median city, or outside the top quarter and under 70% of the top city's strength
+   - yellow otherwise
+5. **Age** is scored separately (age-only `signal.demographics.age`, one call per type and band). Combining age with location swamps the city signal. Absolute affinity ≥ 0.85 is a strong fit and < 0.66 is weak; weak knocks green down to yellow, never further.
 
-Calls per check = (rooms + 1 baseline) × distinct types. With 6 tour cities and 4 types, that's 28 cached calls, not a call per reference.
+Thresholds are pinned by tests on real Qloo numbers (`src/lib/scoring.test.ts`), e.g. Waffle House is green in Atlanta and red in Boston; Dunkin' is green in Boston; Starbucks is yellow everywhere.
 
-**Venue (stretch)**: resolve the venue as a `place` entity and add it as `signal.interests.entities` with a weight, so the audience skews toward that venue's crowd. This ships only if the M1 spike shows it changes results meaningfully.
+**Crowd Card**: location only, no age (age plus location turned Atlanta into Orlando parks in testing). `bias.trends=high` for TV only; places use `filter.location` with a 20 km radius.
 
-**Crowd Card**: for each of 6 types, `GET /v2/insights?filter.type=T&signal.location.query=L&signal.demographics.age=A&bias.trends=high&take=5`, ranked by lift over the baseline so it isn't just the national top 5.
+## Qloo limits and caching
 
-> Verify in the M1 spike: the exact response field that carries per-entity affinity, whether popularity comes back from insights or only from search, and how `filter.results.entities` behaves with a location signal. The scoring module abstracts these so the formula can change in one place.
+The hackathon key allows **5 requests/second and 10,000 requests/month**. The monthly window covers both development and judging (Nov 2–16), so:
+
+- A global throttle of 4 req/s; 429s retry after `x-second-ratelimit-reset`.
+- Caching per entity × city and entity × age band, so a reference is fetched once, ever, and reused by every check that mentions it.
+- **Cache layers**: memory → `src/lib/qloo/seed.json` (a committed snapshot of live responses covering the examples, so judges' default path costs nothing) → Upstash Redis when configured (shared across serverless instances). In local development, everything also persists to `.cache/qloo.json`.
+- **Cost**: an uncached check of a new set is about 8 searches + 8 calls per entity type + 3 per type for age, roughly 40–60 calls.
 
 ## Data model
 
-There's no user database; state lives in the URL and in browser storage.
+There's no user database; state lives in the URL hash and in browser storage.
 
 ```ts
-type AgeBand = "35_and_younger" | "36_to_55" | "55_and_older" | "any";
-type Room = { city: string; venueId?: string; age: AgeBand };
-
-type Reference = {
-  id: string; start: number; end: number; surface: string;
-  roleInLine: string;
-  entity?: { qlooId: string; name: string; type: QlooType; popularity: number; tags: Tag[] };
+type Room = { city: string; age: "any" | "35_and_younger" | "36_to_55" | "55_and_older" };
+type Entity = { qlooId: string; name: string; type: QlooType; popularity: number; tags: Tag[] };
+type Score = {
+  roomKey: string; local: number; rank: number; of: number; lift: number; spread: number; ofTop: number;
+  known: number; placeVerdict: Verdict; ageFit: "strong" | "neutral" | "weak" | null; verdict: Verdict;
 };
-
-type Score = { roomKey: string; local: number; baseline: number; lift: number;
-               known: number; ageDelta?: number; verdict: "green" | "yellow" | "red" };
-
-type Swap = { entity: Reference["entity"]; lift: number; known: number; rewrittenLine: string };
-
-type CrowdCard = { room: Room; byType: Record<QlooType, { entity: Reference["entity"]; lift: number; trending: boolean }[]> };
+type Reference = { id: string; start: number; end: number; surface: string; entity: Entity; scores: Score[]; age?: AgeProfile };
 ```
-
-- **Share links**: the text and rooms are compressed into the URL hash (lz-string), so a judge can open someone else's check.
-- **Drafts**: kept in localStorage, wrapped in try/catch.
 
 ## Key demo flows
 
-1. **Check a set (the 30-second path)**: open the app, see the preloaded stand-up set with Atlanta and 35-and-under selected, and the underlines appear. Switch the city to Boston and watch the underlines change colour.
-2. **Fix a red one**: click a red brand reference to see the popover with the numbers and 3 local swaps. Click one, and the line is rewritten in place and turns green.
-3. **Tour mode**: add Chicago, Houston and Denver. The grid shows which references hold up across the tour and which need a per-city swap. Clicking a cell opens that room's editor, with the Crowd Card alongside for openers.
+1. **Check a set (30 seconds)**: the stand-up example loads in Atlanta: Waffle House, Outkast and *P-Valley* are green; Tom Brady and Wawa are red. Switch to Boston and it nearly inverts.
+2. **Fix a red one**: click Tom Brady, see "#4 of 8", pick a swap, and it turns green.
+3. **Fix my set**: the agent works through the reds, picking swaps that fit each joke, and shows every step.
+4. **Tour mode**: add Chicago, Houston and Denver to see what holds across the tour.
+5. **Inside Claude Desktop**: add the MCP server, paste a set, and ask "will this work in Houston?"
 
 ## Stack and why
 
-- **Next.js 15 + TypeScript on Vercel**: one deploy for the UI and API, with a live link from day 1.
-- **CodeMirror 6**: robust decorations on plain text; we don't need rich text.
-- **Tailwind + Radix primitives**: fast, accessible popovers and selects, styled by hand rather than kept at the defaults.
-- **Anthropic SDK with tool use**: satisfies the agentic requirement in the open, since the agent decides which tools to call and when.
-- **Upstash Redis**: serverless-friendly cache; protects the Qloo quota.
-- **Zod**: validates the LLM's tool output and the Qloo responses at the boundary.
-- **Vitest**: unit tests for scoring and verdict thresholds, plus fixture-based tests for the pipeline.
-
-## Design direction
-
-The editor is the hero, and it should feel like a writing tool (iA Writer, Linear docs), not a dashboard.
-
-- **Type**: a grotesk with character for headings, Inter for body text, and a mono with tabular figures for scores.
-- **Colour**: warm neutrals plus one accent. The verdict colours are reserved for underlines and chips only, tuned to work in both light and dark modes.
-- **Icons**: Lucide, small.
-- **Copy**: plain and specific.
-- **Avoid**: gradients and "AI-powered" badges.
+- **Next.js 15 + TypeScript on Vercel**: one deploy for the UI and API.
+- **CodeMirror 6**: robust decorations on plain text.
+- **Tailwind**: styled by hand; tokens in `globals.css`, designed light and dark themes.
+- **No paid LLM**: the core is deterministic; the agent uses any OpenAI-compatible endpoint (Groq free tier), with a rules fallback.
+- **Upstash Redis (optional)**: serverless-friendly shared cache.
+- **Zod**: validates API input at the boundary.
+- **Vitest**: scoring tests on real Qloo numbers, extractor tests, and pipeline tests on fixtures. Live tests run only with `QLOO_API_KEY`.
 
 ## Out of scope
 
-- Accounts, teams and saved libraries (the URL share is enough)
-- Audio or video input (the set is pasted text only)
-- Non-English text and non-US rooms (US cities first; others work if Qloo resolves them, but they're untuned)
-- Generating jokes or full rewrites; Callback only swaps the reference span
-- A browser extension or Google Docs add-on (mentioned in the README as the business path)
-- An MCP server wrapper (stretch, only if M5 has slack)
+- Accounts, teams and saved libraries (share links are enough)
+- Audio or video input
+- Non-US rooms
+- Venue-level targeting (Qloo place entities carry no location affinity)
+- Generating jokes; the agent only swaps references and the words around them
 
 ## Milestones
 
-Deadline: **Oct 30, 2026, 11:45pm EDT**. Target submit: Oct 30, midday EDT.
+Deadline: **Oct 30, 2026, 11:45pm EDT**. Target submit: Oct 29.
 
-| # | Dates | Ships | Demo-able result |
+| # | Dates | Ships | State |
 |---|---|---|---|
-| M0 | Oct 16 | Repo, Next.js scaffold, Vercel deploy, Qloo key requested, Qloo client + mock interface | Live URL with the empty editor shell |
-| M1 | Oct 17–19 | API spike to confirm the response fields; extract → resolve → score for one room; underlines in the editor | Paste a set, pick a city, see real green/yellow/red underlines |
-| M2 | Oct 20–22 | Popover with the numbers; swap agent with rewrites; threshold calibration on a labelled set; Redis cache | Click red, accept a swap, line turns green |
-| M3 | Oct 23–25 | Tour mode grid; Crowd Card with trends; age band delta | 4-city tour grid plus Crowd Card |
-| M4 | Oct 26–28 | Design pass, presets + fixtures, empty/loading/error states, share links, rate limiting, venue signal if the spike supported it | A judge can do the 30-second path cold |
-| M5 | Oct 29–30 | README (pitch, honest limitation, run locally), MIT LICENSE, `.env.example`, Devpost text, demo script, buffer | Submitted |
+| M0 | Oct 16 | Scaffold, repo, mock client | Done |
+| M1 | Oct 16–20 | Editor, swaps, tour mode, Crowd Card, share links; **live Qloo client, city-rank scoring, LLM-free extraction, seed cache** | Done |
+| M2 | Oct 21–22 | "Fix my set" agent: LLM provider (OpenAI-compatible), tool loop, streamed steps, rules fallback | Next |
+| M3 | Oct 23 | MCP server at `/api/mcp` | |
+| M4 | Oct 24–26 | Vercel deploy, Upstash, design pass, empty/error states, quota guard | |
+| M5 | Oct 27–29 | README, Devpost text, demo script, buffer | |
 
-**Fallback if the key is late**: M1 and M2 run against the mock client with hand-built fixtures, then switch to live data the day the key arrives. Scope to cut first, in order: venue signal, age delta display, share links, Tour mode beyond 4 cities.
+### Decisions log
 
-## Progress (updated 2026-10-16)
-
-| Milestone | State |
-|---|---|
-| M0 scaffold, repo, mock client | Done. Vercel deploy still to do |
-| M1 extract, resolve, score, underlines | Done **on demo data**. Live Qloo client waits for the hackathon key; `scripts/qloo-spike.mjs` confirms the response fields in one run |
-| M2 swaps | Swap suggestions and one-click replace work. Still to do: LLM line rewrite (a/an, voice), threshold calibration on live data, Redis cache |
-| M3 tour mode, Crowd Card | Tour grid and Crowd Card done. Trending flags need live `bias.trends` data |
-| M4 polish | Share links, rate limiting and mobile layout done. Still to do: venue signal (if the spike supports it), final design pass |
-
-### Decisions that changed the plan
-
-- **Demo-data mode is a first-class path.** `MockQlooClient` and `src/lib/qloo/fixtures.ts` back the whole app with invented, clearly labelled numbers ("Demo data" badge) so the product runs without a key. The fixtures are not Qloo data.
-- **Extractor fallback.** Without `ANTHROPIC_API_KEY` a keyword matcher over the fixtures extracts references, so the preloaded sets work with zero keys.
-- **Structured output, not forced tool use.** Reference extraction uses `messages.parse` with a Zod schema, because forced `tool_choice` returns 400 on the current models.
-- **Tour mode hides the Crowd Card** and shows the grid full width; the editor underline shows the weakest city.
-- **In-memory rate limit** (20 checks/min per IP) instead of Redis for now. Upstash stays optional.
+- **Oct 20: no paid LLM.** The core runs on Qloo alone; the agent uses a free OpenAI-compatible model with a rules fallback. The Anthropic SDK was removed.
+- **Oct 20: city rank instead of national lift.** Qloo returns no affinity without a signal, so there's no national baseline to divide by.
+- **Oct 20: WKT point instead of `signal.location.query`.** The locality query silently drops entities.
+- **Oct 20: age scored separately.** Combined with location it drowned out the city signal.
+- **Oct 20: pool of 8 cities, not 12,** to fit the 10,000-call monthly quota.
+- **Oct 20: places excluded from resolution.** Store locations crowded out brands, and venues have no location affinity.
+- **Oct 16: tour mode hides the Crowd Card** and the editor underline shows the weakest city.

@@ -14,29 +14,29 @@ Built for the [Qloo Agentic Hackathon](https://qloo.devpost.com/).
 
 ## How it works
 
-1. An LLM pulls the cultural references out of your text (Claude, structured output).
-2. Each reference is resolved to a Qloo entity with `/search`.
-3. Entities are scored against the room in batches, one `/v2/insights` call per room and entity type, using `signal.location.query` and `signal.demographics.age`, then compared with the national baseline.
-4. A reference **lands** only if it is both widely known (popularity) and loved locally (local affinity above the national baseline).
-5. For weak references, the agent takes the original entity's tags and asks Qloo for same-tag entities this room over-indexes on.
+1. **Find the references.** Capitalised phrases are pulled from the text and resolved with Qloo `/search` (brands, TV, film, music, people, podcasts, games and books). No LLM is involved.
+2. **Rank the city.** For each reference, Qloo `/v2/insights` gives its affinity in a pool of 8 US cities (`signal.location` as a map point). A reference **lands** when it's widely known and this city ranks near the top of the pool for it. It **dies** when this city sits well below the rest.
+3. **Apply the age band.** Age is scored separately (`signal.demographics.age`). A weak fit stops a reference being a sure thing.
+4. **Swap.** For a weak reference, Qloo suggests similar entities near the city (`signal.interests.entities`), and each one is ranked the same way before it's offered.
+5. **Crowd Card.** What the city over-indexes on right now, with TV biased toward trending (`bias.trends`).
 
-A plain LLM can only guess clichés ("deep-dish for Chicago"). It can't say whether *this* reference works for *this* crowd. That comparison is what Qloo's taste graph provides.
+A plain LLM can only guess clichés. Qloo knows that Wawa is #1 in New York and dies in Atlanta, and that Waffle House is Atlanta's while Boston doesn't care.
 
 ### An honest limitation
 
-Qloo affinity measures *liking*, not *recognition*. "Lands" is therefore a proxy: popularity says people probably know it, and local lift over the national baseline says this room likes it more than average. Both numbers are shown on every underline so you can judge for yourself.
+Qloo affinity measures *liking*, not *recognition*. "Lands" is a proxy: popularity says people probably know it, and the city rank says this room likes it more than most. The numbers are shown on every underline. A few famous entities (*The Office*, Drake) have no city-level data in Qloo; they're marked grey rather than guessed.
 
 ## Status
 
 | Piece | State |
 |---|---|
-| Editor, underlines, swap popover, Crowd Card | Working |
-| Reference extraction (Claude) | Working; falls back to a keyword matcher without `ANTHROPIC_API_KEY` |
-| Qloo scoring | **Running on built-in demo data** (labelled "Demo data" in the UI). The live client lands once the hackathon key arrives |
-| Tour mode (one set across several cities, reference by city grid) | Working |
-| Share links (set, room and tour in the URL hash) | Working |
+| Editor, underlines, swap popover, Crowd Card | Working on live Qloo data |
+| Tour mode, share links | Working |
+| Reference extraction | Working, with no LLM (Qloo search) |
+| "Fix my set" agent (free LLM, rules fallback) | In progress |
+| MCP server for Claude Desktop, Cursor and other agents | Planned |
 
-The demo fixtures in `src/lib/qloo/fixtures.ts` are invented numbers for development. They are not Qloo data.
+Qloo's hackathon key allows 10,000 calls a month, so responses are cached per entity and city, and `src/lib/qloo/seed.json` ships a snapshot that covers the examples.
 
 ## Run locally
 
@@ -46,10 +46,10 @@ cp .env.example .env.local   # all keys are optional
 npm run dev
 ```
 
-With no keys it runs on demo data and the keyword extractor. Add `ANTHROPIC_API_KEY` for real reference extraction, and `QLOO_API_KEY` for live Qloo scoring once available (hackathon keys only work against `https://hackathon.api.qloo.com`).
+With no keys it runs on invented demo fixtures. Add `QLOO_API_KEY` for live Qloo scoring (hackathon keys only work against `https://hackathon.api.qloo.com`). In development, Qloo responses are cached in `.cache/qloo.json` so restarts don't spend quota.
 
 ```bash
-npm test        # unit and pipeline tests
+npm test        # unit and pipeline tests; live Qloo tests run only when QLOO_API_KEY is set
 npm run typecheck
 ```
 
