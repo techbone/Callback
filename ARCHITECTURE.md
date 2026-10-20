@@ -174,8 +174,8 @@ Deadline: **Oct 30, 2026, 11:45pm EDT**. Target submit: Oct 29.
 | M1 | Oct 16–20 | Editor, swaps, tour mode, Crowd Card, share links; **live Qloo client, city-rank scoring, LLM-free extraction, seed cache** | Done |
 | M2 | Oct 20 | "Fix my set" agent: OpenAI-compatible LLM (Groq `openai/gpt-oss-120b`, `qwen/qwen3.8-27b` backup), check → swap → re-check loop, streamed steps, rules fallback, undo | Done |
 | M3 | Oct 20 | MCP server at `/api/mcp`: `check_references`, `find_local_swaps`, `compare_cities`, `where_it_lands`, `crowd_card`, `fix_set`; prompts `localize_set`, `plan_tour`; resources `callback://method`, `callback://cities` (mcp-handler 2 + MCP SDK v2) | Done |
-| M4 | Oct 24–26 | Vercel deploy, Upstash, design pass, empty/error states, quota guard | |
-| M5 | Oct 27–29 | README, Devpost text, demo script, buffer | |
+| M4 | Oct 20 | Vercel deploy, design pass, logo and favicon, link preview, quota guard, premise warning | Done (Upstash left optional) |
+| M5 | Oct 20 | README, Devpost submission, demo video | Done |
 
 ### Decisions log
 

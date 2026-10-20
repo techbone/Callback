@@ -1,16 +1,27 @@
 # Callback
 
-A spell-checker for cultural references. Paste a stand-up set, toast, keynote or sales pitch, pick the room (city and age band), and every reference is underlined:
+A spell-checker for cultural references. Paste a stand-up set, toast, keynote or sales pitch, pick the room (city and age band), and every reference is underlined by how it will play there.
 
-- **Green, solid**: this crowd knows it and likes it more than the country does.
-- **Yellow, dashed**: they know it, but they're no keener than anyone else.
-- **Red, wavy**: it will die here. Click it to see local swaps from the same category, and replace it in one click.
+**Live demo:** https://callback-ecru-one.vercel.app · **MCP server:** `https://callback-ecru-one.vercel.app/api/mcp`
 
-A **Crowd Card** beside the editor lists what the room loves right now, for openers and crowd work.
+![Callback checking a stand-up set for Atlanta](docs/media/01-underlines.png)
+
+- **Green, solid**: widely known, and this city is one of the ones that likes it most.
+- **Yellow, dashed**: known, but it plays about the same everywhere.
+- **Red, wavy**: this city is one of the ones that likes it least. Click it for same-category swaps this city loves, and replace it in one click.
+- **Grey, dotted**: Qloo has no city-level data for it, so Callback says so instead of guessing.
 
 Built for the [Qloo Agentic Hackathon](https://qloo.devpost.com/).
 
-**Live demo:** _coming with the first deploy_
+## What's in it
+
+- **The editor.** Click any underline for its rank across 8 US cities, a "where it lands" chart, the age-band read, and swaps with the Qloo tags they share.
+- **Fix my set.** An agent swaps everything that dies, picks the swap that fits each joke, rewrites only that sentence, re-checks, and shows every step. Undo restores the original.
+- **Tour mode.** One set against up to 6 cities, as a reference-by-city grid.
+- **Crowd Card.** What the city over-indexes on, for openers and crowd work.
+- **Qloo receipt.** Under every check: the endpoints and signals used, and API calls versus cache.
+- **MCP server.** Six tools, two prompts and two resources, so any agent can use the same scoring.
+- **Share links.** The text, room and tour are saved in the URL.
 
 ## How it works
 
@@ -26,17 +37,9 @@ A plain LLM can only guess clichés. Qloo knows that Wawa is #1 in New York and 
 
 Qloo affinity measures *liking*, not *recognition*. "Lands" is a proxy: popularity says people probably know it, and the city rank says this room likes it more than most. The numbers are shown on every underline. A few famous entities (*The Office*, Drake) have no city-level data in Qloo; they're marked grey rather than guessed.
 
-## Status
+## Qloo usage and limits
 
-| Piece | State |
-|---|---|
-| Editor, underlines, swap popover, Crowd Card | Working on live Qloo data |
-| Tour mode, share links | Working |
-| Reference extraction | Working, with no LLM (Qloo search) |
-| "Fix my set" agent (free LLM on Groq, rules fallback) | Working |
-| MCP server (6 tools, 2 prompts, 2 resources) for Claude Desktop, Cursor and other agents | Working |
-
-Qloo's hackathon key allows 10,000 calls a month, so responses are cached per entity and city, and `src/lib/qloo/seed.json` ships a snapshot that covers the examples.
+Qloo's hackathon key allows 10,000 calls a month and 5 a second. Calls are throttled to 4 a second, every entity-and-city result is cached once, `src/lib/qloo/seed.json` ships a snapshot that covers the examples, and new calls stop before the monthly quota runs out so the examples keep working.
 
 ## Use Callback inside your agent (MCP)
 
@@ -53,17 +56,17 @@ Callback is also an MCP server, so Claude Desktop, Cursor, VS Code or any MCP cl
 
 There are also two prompts (`localize_set`, `plan_tour`) and two resources (`callback://method`, the scoring method; `callback://cities`).
 
-**Claude Desktop**: Settings → Connectors → Add custom connector, and paste `https://<deployment>/api/mcp`. Or, for stdio-only clients, in the config file:
+**Claude Desktop**: Settings → Connectors → Add custom connector, and paste `https://callback-ecru-one.vercel.app/api/mcp`. Or, for stdio-only clients, in the config file:
 
 ```json
 {
   "mcpServers": {
-    "callback": { "command": "npx", "args": ["-y", "mcp-remote", "https://<deployment>/api/mcp"] }
+    "callback": { "command": "npx", "args": ["-y", "mcp-remote", "https://callback-ecru-one.vercel.app/api/mcp"] }
   }
 }
 ```
 
-**Cursor / VS Code**: add a server with `"url": "https://<deployment>/api/mcp"`.
+**Cursor / VS Code**: add a server with `"url": "https://callback-ecru-one.vercel.app/api/mcp"`.
 
 Locally, use `http://localhost:3000/api/mcp`. To poke at it, run `npx @modelcontextprotocol/inspector` and point it at that URL.
 
