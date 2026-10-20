@@ -34,9 +34,40 @@ Qloo affinity measures *liking*, not *recognition*. "Lands" is a proxy: populari
 | Tour mode, share links | Working |
 | Reference extraction | Working, with no LLM (Qloo search) |
 | "Fix my set" agent (free LLM on Groq, rules fallback) | Working |
-| MCP server for Claude Desktop, Cursor and other agents | Planned |
+| MCP server (6 tools, 2 prompts, 2 resources) for Claude Desktop, Cursor and other agents | Working |
 
 Qloo's hackathon key allows 10,000 calls a month, so responses are cached per entity and city, and `src/lib/qloo/seed.json` ships a snapshot that covers the examples.
+
+## Use Callback inside your agent (MCP)
+
+Callback is also an MCP server, so Claude Desktop, Cursor, VS Code or any MCP client can check and fix text with the same Qloo-backed scoring. The endpoint is `/api/mcp` (Streamable HTTP, stateless).
+
+| Tool | What it does | Qloo features used |
+|---|---|---|
+| `check_references` | Every reference in a text: lands, shaky, dies or no_data, with the city's rank | `/search`, `/v2/insights` with `filter.results.entities` + `signal.location`, `signal.demographics.age` |
+| `find_local_swaps` | Same-category replacements the city ranks highly, with shared Qloo tags | `signal.interests.entities` near the city, then ranked across the pool |
+| `compare_cities` | One set across up to 6 tour stops | as `check_references`, per city |
+| `where_it_lands` | One reference ranked across every city, plus which age bands like it | `signal.location` × 8 cities, `signal.demographics.age` × 3 bands |
+| `crowd_card` | What a city over-indexes on: TV, artists, brands, people, places | `signal.location`, `bias.trends` (TV), `filter.location` (places) |
+| `fix_set` | Callback's own agent swaps everything that dies and returns the new text | all of the above |
+
+There are also two prompts (`localize_set`, `plan_tour`) and two resources (`callback://method`, the scoring method; `callback://cities`).
+
+**Claude Desktop**: Settings → Connectors → Add custom connector, and paste `https://<deployment>/api/mcp`. Or, for stdio-only clients, in the config file:
+
+```json
+{
+  "mcpServers": {
+    "callback": { "command": "npx", "args": ["-y", "mcp-remote", "https://<deployment>/api/mcp"] }
+  }
+}
+```
+
+**Cursor / VS Code**: add a server with `"url": "https://<deployment>/api/mcp"`.
+
+Locally, use `http://localhost:3000/api/mcp`. To poke at it, run `npx @modelcontextprotocol/inspector` and point it at that URL.
+
+Then ask: *"Here's my set. Will it work in Houston? Fix whatever dies."*
 
 ## Run locally
 

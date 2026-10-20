@@ -74,7 +74,7 @@ flowchart LR
 | `POST /api/swap` | `{ entity, room }` | up to 3 scored swaps |
 | `GET /api/crowd` | `city` | entities by type |
 | `POST /api/fix` (M2) | `{ text, room }` | streamed agent steps and the fixed text |
-| `/api/mcp` (M3) | MCP over Streamable HTTP | tools `check_set`, `find_swaps`, `crowd_card` |
+| `/api/mcp` | MCP over Streamable HTTP | 6 tools, 2 prompts, 2 resources |
 
 ### Core pipeline (no LLM)
 
@@ -173,7 +173,7 @@ Deadline: **Oct 30, 2026, 11:45pm EDT**. Target submit: Oct 29.
 | M0 | Oct 16 | Scaffold, repo, mock client | Done |
 | M1 | Oct 16–20 | Editor, swaps, tour mode, Crowd Card, share links; **live Qloo client, city-rank scoring, LLM-free extraction, seed cache** | Done |
 | M2 | Oct 20 | "Fix my set" agent: OpenAI-compatible LLM (Groq `openai/gpt-oss-120b`, `qwen/qwen3.8-27b` backup), check → swap → re-check loop, streamed steps, rules fallback, undo | Done |
-| M3 | Oct 21 | MCP server at `/api/mcp` | Next |
+| M3 | Oct 20 | MCP server at `/api/mcp`: `check_references`, `find_local_swaps`, `compare_cities`, `where_it_lands`, `crowd_card`, `fix_set`; prompts `localize_set`, `plan_tour`; resources `callback://method`, `callback://cities` (mcp-handler 2 + MCP SDK v2) | Done |
 | M4 | Oct 24–26 | Vercel deploy, Upstash, design pass, empty/error states, quota guard | |
 | M5 | Oct 27–29 | README, Devpost text, demo script, buffer | |
 
