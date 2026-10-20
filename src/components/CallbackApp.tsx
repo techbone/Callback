@@ -1,14 +1,16 @@
 "use client";
 
-import { Check, Link as LinkIcon, LoaderCircle, SpellCheck } from "lucide-react";
+import { Check, Link as LinkIcon, LoaderCircle, SpellCheck, Wand2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CrowdCard } from "./CrowdCard";
+import { FixPanel, type FixState } from "./FixPanel";
 import { Editor, type EditorHandle, type Mark, type MarkClick } from "./Editor";
 import { RefPopover } from "./RefPopover";
 import { Select } from "./Select";
 import { TourGrid, worst } from "./TourGrid";
 import { PRESETS } from "@/lib/presets";
 import { decodeShare, encodeShare } from "@/lib/share";
+import type { FixStep } from "@/lib/agent/fix";
 import { CITY_NAMES } from "@/lib/cities";
 import { AGE_BANDS, AGE_LABELS, type AgeBand, type Candidate, type CheckResult, type Reference, type Room, roomKey } from "@/lib/types";
 
@@ -36,6 +38,8 @@ export function CallbackApp() {
   const [mode, setMode] = useState<Mode>("room");
   const [tour, setTour] = useState<string[]>(DEFAULT_TOUR);
   const [copied, setCopied] = useState(false);
+  const [fix, setFix] = useState<FixState | null>(null);
+  const beforeFix = useRef<string | null>(null);
 
   const text = useRef(first.text);
   const editor = useRef<EditorHandle>(null);
@@ -84,6 +88,66 @@ export function CallbackApp() {
     text.current = shared.t;
     void run(shared.t, shared.m === "tour" ? shared.c.map((city) => ({ ...r, city })) : [r]);
   }, [run, first]);
+
+  const replaceDoc = (t: string, key: string) => {
+    setInitialDoc(t);
+    setDocKey(key);
+    text.current = t;
+  };
+
+  const runFix = async () => {
+    if (!text.current.trim()) return;
+    beforeFix.current = text.current;
+    setOpen(null);
+    setFix({ status: "running", steps: [] });
+    try {
+      const res = await fetch("/api/fix", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ text: text.current, room }),
+      });
+      if (!res.ok || !res.body) throw new Error(String(res.status));
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+      const steps: FixStep[] = [];
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        let nl: number;
+        while ((nl = buf.indexOf("\n")) >= 0) {
+          const line = buf.slice(0, nl).trim();
+          buf = buf.slice(nl + 1);
+          if (!line) continue;
+          const step = JSON.parse(line) as FixStep | { kind: "error"; message: string };
+          if (step.kind === "error") {
+            setFix({ status: "error", steps: [...steps], message: step.message });
+            return;
+          }
+          steps.push(step);
+          if (step.kind === "done") {
+            replaceDoc(step.text, `fix-${Date.now()}`);
+            setResult(step.result);
+            setStale(false);
+            setFix({ status: "done", steps: [...steps] });
+            return;
+          }
+          setFix({ status: "running", steps: [...steps] });
+        }
+      }
+      setFix({ status: "error", steps, message: "The agent stopped early. Try again." });
+    } catch {
+      setFix((f) => ({ status: "error", steps: f?.steps ?? [], message: "Couldn’t reach the agent. Try again." }));
+    }
+  };
+
+  const undoFix = () => {
+    if (beforeFix.current === null) return;
+    replaceDoc(beforeFix.current, `undo-${Date.now()}`);
+    setFix(null);
+    void run(beforeFix.current, activeRooms);
+  };
 
   const copyLink = async () => {
     const hash = encodeShare({ t: text.current, r: { city: room.city, age: room.age }, m: mode, c: tour });
@@ -154,6 +218,7 @@ export function CallbackApp() {
 
   const loadPreset = (id: string) => {
     const p = PRESETS.find((x) => x.id === id)!;
+    setFix(null);
     setPresetId(id);
     setInitialDoc(p.text);
     setDocKey(`${id}-${Date.now()}`);
@@ -243,7 +308,7 @@ export function CallbackApp() {
               onClick={() => run(text.current, activeRooms)}
               disabled={status === "loading"}
               className={`h-9 rounded-md px-4 text-sm font-medium transition-colors disabled:opacity-60 ${
-                stale ? "bg-ink text-bg" : "border border-line bg-surface text-ink hover:border-muted"
+                stale ? "border border-ink bg-surface text-ink" : "border border-line bg-surface text-ink hover:border-muted"
               }`}
             >
               {status === "loading" ? (
@@ -254,6 +319,16 @@ export function CallbackApp() {
                 "Check"
               )}
             </button>
+            {mode === "room" && (
+              <button
+                onClick={runFix}
+                disabled={fix?.status === "running" || status === "loading"}
+                className="flex h-9 items-center gap-2 rounded-md bg-ink px-3.5 text-sm font-medium text-bg transition-opacity hover:opacity-90 disabled:opacity-50"
+              >
+                {fix?.status === "running" ? <LoaderCircle size={14} className="animate-spin" /> : <Wand2 size={14} />}
+                Fix my set
+              </button>
+            )}
             <button
               onClick={copyLink}
               className="flex h-9 items-center gap-2 rounded-md border border-line bg-surface px-3 text-sm text-muted transition-colors hover:border-muted hover:text-ink"
@@ -324,6 +399,8 @@ export function CallbackApp() {
                     : ""}
             </p>
           </div>
+
+          {fix && mode === "room" && <FixPanel state={fix} onUndo={undoFix} onClose={() => setFix(null)} />}
 
           {mode === "tour" && result && <TourGrid references={result.references} cities={tour} onPick={openCity} />}
 

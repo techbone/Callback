@@ -33,7 +33,7 @@ Qloo affinity measures *liking*, not *recognition*. "Lands" is a proxy: populari
 | Editor, underlines, swap popover, Crowd Card | Working on live Qloo data |
 | Tour mode, share links | Working |
 | Reference extraction | Working, with no LLM (Qloo search) |
-| "Fix my set" agent (free LLM, rules fallback) | In progress |
+| "Fix my set" agent (free LLM on Groq, rules fallback) | Working |
 | MCP server for Claude Desktop, Cursor and other agents | Planned |
 
 Qloo's hackathon key allows 10,000 calls a month, so responses are cached per entity and city, and `src/lib/qloo/seed.json` ships a snapshot that covers the examples.

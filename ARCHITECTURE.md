@@ -88,7 +88,7 @@ flowchart LR
 A tool-using loop over the core:
 
 - **Tools**: `check_set`, `find_swaps(reference, city)`, `apply_swap(reference, replacement, rewritten_sentence)`.
-- **Loop**: check → pick the worst reference → fetch swaps → choose the one that fits the joke → rewrite only that sentence → re-check → repeat until nothing is red or 6 steps have run. Each step streams to the UI.
+- **Loop**: check → pick the next reference that dies here → fetch swaps → choose the one that fits the joke (or keep it if nothing fits) → rewrite only that sentence → validate the rewrite → re-check → repeat until nothing is red or 6 steps have run. Each step streams to the UI as NDJSON.
 - **Brain**: any OpenAI-compatible endpoint (`LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`), Groq's free tier by default. The LLM's job is judgement Qloo can't give: the swap has to fit the line ("a guy who throws" needs a quarterback, not a running back), and grammar has to survive ("a Waffle House" → "an Applebee's").
 - **Fallback**: no key, quota spent or a bad response → the same loop runs with rules (best-ranked green swap, name replaced in place). The demo never breaks; it's just less clever.
 
@@ -172,12 +172,14 @@ Deadline: **Oct 30, 2026, 11:45pm EDT**. Target submit: Oct 29.
 |---|---|---|---|
 | M0 | Oct 16 | Scaffold, repo, mock client | Done |
 | M1 | Oct 16–20 | Editor, swaps, tour mode, Crowd Card, share links; **live Qloo client, city-rank scoring, LLM-free extraction, seed cache** | Done |
-| M2 | Oct 21–22 | "Fix my set" agent: LLM provider (OpenAI-compatible), tool loop, streamed steps, rules fallback | Next |
-| M3 | Oct 23 | MCP server at `/api/mcp` | |
+| M2 | Oct 20 | "Fix my set" agent: OpenAI-compatible LLM (Groq `openai/gpt-oss-120b`, `qwen/qwen3.8-27b` backup), check → swap → re-check loop, streamed steps, rules fallback, undo | Done |
+| M3 | Oct 21 | MCP server at `/api/mcp` | Next |
 | M4 | Oct 24–26 | Vercel deploy, Upstash, design pass, empty/error states, quota guard | |
 | M5 | Oct 27–29 | README, Devpost text, demo script, buffer | |
 
 ### Decisions log
+
+- **Oct 20: the agent loop is driven by code; the LLM makes the judgement calls.** Groq's free tier allows 8,000 tokens a minute, so a multi-turn tool-calling conversation would hit the limit. Each decision is one small JSON call (about 250–700 tokens): which swap fits the line, the rewritten sentence, or "none fits". Rewrites that drift from the writer's words are rejected and the rules take over.
 
 - **Oct 20: no paid LLM.** The core runs on Qloo alone; the agent uses a free OpenAI-compatible model with a rules fallback. The Anthropic SDK was removed.
 - **Oct 20: city rank instead of national lift.** Qloo returns no affinity without a signal, so there's no national baseline to divide by.
