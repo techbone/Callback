@@ -1,0 +1,37 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=1200">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="base.css">
+<style>
+  body { width: 1200px; height: 800px; padding: 56px 64px; display: grid; grid-template-columns: 1fr 1fr; gap: 48px; }
+  h1 { font-size: 46px; line-height: 1.08; }
+  .sub { color: var(--muted); font-size: 19px; margin-top: 14px; line-height: 1.45; }
+  .ask { margin-top: 28px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+  .ask .who { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+  .ask p { font-size: 18px; margin-top: 8px; line-height: 1.5; }
+  .url { margin-top: 18px; font-size: 14px; background: var(--ink); color: var(--bg); border-radius: 8px; padding: 12px 14px; }
+  .tools { display: flex; flex-direction: column; gap: 10px; }
+  .tool { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .tool code { font-size: 15px; font-weight: 500; }
+  .tool .q { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
+  .tool p { font-size: 14px; color: var(--muted); margin-top: 6px; line-height: 1.4; }
+  .brand { display:flex; align-items:center; gap:10px; font-weight: 600; font-size: 18px; margin-top: auto; }
+  .left { display: flex; flex-direction: column; }
+  .meta { font-size: 13px; color: var(--muted); margin-top: 10px; }
+</style></head><body>
+  <div class="left">
+    <h1 class="display">Use it inside the agent you already have.</h1>
+    <p class="sub">Callback is an MCP server. Add one URL in Claude, Cursor or VS Code and your own agent can check and fix text with Qloo's taste data.</p>
+    <div class="ask"><div class="who">You, in Claude</div><p>Will this set work in Houston? Fix whatever dies.</p></div>
+    <div class="url mono">https://callback-ecru-one.vercel.app/api/mcp</div>
+    <p class="meta">6 tools · 2 prompts · 2 resources · Streamable HTTP · no sign-in</p>
+    <div class="brand"><svg viewBox="0 0 32 32" style="width:30px;height:30px"><rect width="32" height="32" rx="7.5" fill="#1b1a17"/><path d="M20.6 8.6A7.2 7.2 0 1 0 20.6 19.4" fill="none" stroke="#f5f3ee" stroke-width="3.4" stroke-linecap="round"/><path d="M6.5 25.2q2.4-3 4.8 0t4.8 0 4.8 0 4.8 0" fill="none" stroke="#ef5a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg> Callback</div>
+  </div>
+  <div class="tools">
+    <div class="tool"><code class="mono">check_references</code><div class="q mono">search · insights · signal.location · signal.demographics.age</div><p>Every reference in a text: lands, shaky, dies or no data, with the city's rank.</p></div>
+    <div class="tool"><code class="mono">find_local_swaps</code><div class="q mono">signal.interests.entities near the city</div><p>Same-category replacements the city ranks highly, with the Qloo tags they share.</p></div>
+    <div class="tool"><code class="mono">compare_cities</code><div class="q mono">insights × up to 6 cities</div><p>One set across a tour: what to keep, what to swap where.</p></div>
+    <div class="tool"><code class="mono">where_it_lands</code><div class="q mono">signal.location × 8 cities · age × 3 bands</div><p>One reference ranked everywhere, plus which age groups like it.</p></div>
+    <div class="tool"><code class="mono">crowd_card</code><div class="q mono">bias.trends · filter.location</div><p>What a city over-indexes on, for openers and crowd work.</p></div>
+    <div class="tool"><code class="mono">fix_set</code><div class="q mono">all of the above</div><p>Callback's agent rewrites what dies and returns the new text with reasons.</p></div>
+  </div>
+</body></html>

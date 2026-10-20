@@ -1,0 +1,10 @@
+:root { --bg:#f5f3ee; --surface:#fbfaf7; --ink:#1b1a17; --muted:#6b675e; --line:#e2ded4; --green:#2d8a57; --yellow:#a97c08; --red:#cf3b2d; }
+* { box-sizing: border-box; margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: "Inter", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+.display { font-family: "Bricolage Grotesque", "Inter", sans-serif; letter-spacing: -0.02em; }
+.mono { font-family: "JetBrains Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+.mark { text-decoration-line: underline; text-decoration-thickness: 3px; text-underline-offset: 7px; border-radius: 4px; padding: 0 4px; }
+.g { text-decoration-style: solid; text-decoration-color: var(--green); background: rgb(45 138 87 / .13); }
+.y { text-decoration-style: dashed; text-decoration-color: var(--yellow); background: rgb(169 124 8 / .14); }
+.r { text-decoration-style: wavy; text-decoration-color: var(--red); background: rgb(207 59 45 / .1); }
+.logo { width: 44px; height: 44px; }

@@ -1,0 +1,36 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=1200">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="base.css">
+<style>
+  body { width: 1200px; height: 800px; padding: 56px 64px; display: flex; flex-direction: column; }
+  h1 { font-size: 46px; line-height: 1.08; max-width: 900px; }
+  .sub { color: var(--muted); font-size: 19px; margin-top: 12px; max-width: 760px; line-height: 1.45; }
+  .row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 34px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px 18px 16px; position: relative; }
+  .n { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+  .t { font-size: 22px; font-weight: 600; margin-top: 6px; }
+  .d { color: var(--muted); font-size: 14.5px; margin-top: 6px; line-height: 1.45; min-height: 64px; }
+  .code { font-size: 11.5px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); line-height: 1.7; color: var(--ink); }
+  .code b { font-weight: 500; }
+  .arrow { position: absolute; right: -14px; top: 50%; width: 12px; height: 12px; border-top: 2px solid var(--muted); border-right: 2px solid var(--muted); transform: translateY(-50%) rotate(45deg); }
+  .out { margin-top: 26px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .out .card { background: var(--ink); color: var(--bg); border: 0; }
+  .out .n { color: #a8a499; } .out .d { color: #cfcbc1; min-height: 0; }
+  .foot { margin-top: auto; display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 14px; }
+  .brand { display:flex; align-items:center; gap:10px; color: var(--ink); font-weight: 600; font-size: 18px; }
+</style></head><body>
+  <h1 class="display">Every verdict is a Qloo call, and you can see which one.</h1>
+  <p class="sub">Callback has no opinion of its own. It asks Qloo where a reference is loved, then shows the ranking behind each underline.</p>
+  <div class="row">
+    <div class="card"><div class="n">1 · Resolve</div><div class="t display">Find the entity</div><div class="d">Capitalised phrases in your text are matched to brands, shows, films, music, people, games and books.</div><div class="code mono"><b>/search</b><br>query · types</div><span class="arrow"></span></div>
+    <div class="card"><div class="n">2 · Rank the city</div><div class="t display">Where is it loved?</div><div class="d">Each entity's affinity in eight US cities. The room's city is ranked against the rest.</div><div class="code mono"><b>/v2/insights</b><br>filter.results.entities<br>signal.location · 40 km</div><span class="arrow"></span></div>
+    <div class="card"><div class="n">3 · Read the age</div><div class="t display">Who likes it?</div><div class="d">How each age band takes to it. A weak fit stops a green being a sure thing.</div><div class="code mono"><b>/v2/insights</b><br>signal.demographics.age</div><span class="arrow"></span></div>
+    <div class="card"><div class="n">4 · Swap</div><div class="t display">What to say instead</div><div class="d">Similar entities near the city, each re-ranked the same way before it is offered.</div><div class="code mono"><b>/v2/insights</b><br>signal.interests.entities<br>bias.trends · filter.location</div></div>
+  </div>
+  <div class="out">
+    <div class="card"><div class="n">Web</div><div class="t display">The editor</div><div class="d">Underlines in your own text. Click any one for the rank, the city bars and the swaps.</div></div>
+    <div class="card"><div class="n">Agent</div><div class="t display">Fix my set</div><div class="d">Swaps what dies, picks the one that fits each joke, rewrites that sentence, re-checks.</div></div>
+    <div class="card"><div class="n">MCP</div><div class="t display">Inside any agent</div><div class="d">Six tools for Claude, Cursor and other MCP clients. The same Qloo scoring.</div></div>
+  </div>
+  <div class="foot"><div class="brand"><svg class="logo" viewBox="0 0 32 32" style="width:30px;height:30px"><rect width="32" height="32" rx="7.5" fill="#1b1a17"/><path d="M20.6 8.6A7.2 7.2 0 1 0 20.6 19.4" fill="none" stroke="#f5f3ee" stroke-width="3.4" stroke-linecap="round"/><path d="M6.5 25.2q2.4-3 4.8 0t4.8 0 4.8 0 4.8 0" fill="none" stroke="#ef5a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg> Callback</div><div>Powered by Qloo's Taste AI API</div></div>
+</body></html>

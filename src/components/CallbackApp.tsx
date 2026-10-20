@@ -1,9 +1,10 @@
 "use client";
 
-import { Check, Link as LinkIcon, LoaderCircle, SpellCheck, Wand2 } from "lucide-react";
+import { Check, Link as LinkIcon, LoaderCircle, Wand2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CrowdCard } from "./CrowdCard";
 import { FixPanel, type FixState } from "./FixPanel";
+import { Logo } from "./Logo";
 import { Editor, type EditorHandle, type Mark, type MarkClick } from "./Editor";
 import { QlooReceipt } from "./QlooReceipt";
 import { RefPopover } from "./RefPopover";
@@ -256,17 +257,32 @@ export function CallbackApp() {
     <div className="mx-auto max-w-[1200px] px-4 pb-16 sm:px-6">
       <header className="flex items-center justify-between py-6">
         <div className="flex items-center gap-2.5">
-          <SpellCheck size={20} strokeWidth={2} />
+          <Logo />
           <span className="font-display text-xl font-semibold tracking-tight">Callback</span>
         </div>
-        {result?.source === "demo" && (
-          <span
-            title="Scores come from built-in sample data until a Qloo key is connected."
-            className="rounded-full border border-line px-2.5 py-1 text-xs text-muted"
+        <div className="flex items-center gap-2">
+          <button
+            onClick={copyLink}
+            className="flex h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-xs text-muted transition-colors hover:border-muted hover:text-ink"
+            title="Copy a link to this set, room and tour"
           >
-            Demo data
-          </span>
-        )}
+            {copied ? <Check size={13} /> : <LinkIcon size={13} />}
+            <span className="hidden sm:inline">{copied ? "Copied" : "Copy link"}</span>
+          </button>
+          {result && (
+            <span
+              title={
+                result.source === "live"
+                  ? "Scores come from Qloo's Taste AI API in real time."
+                  : "Scores come from built-in sample data until a Qloo key is connected."
+              }
+              className="flex h-8 items-center gap-2 rounded-md border border-line px-2.5 text-xs text-muted"
+            >
+              <span className={`size-1.5 rounded-full ${result.source === "live" ? "bg-green" : "bg-yellow"}`} />
+              {result.source === "live" ? "Live Qloo data" : "Demo data"}
+            </span>
+          )}
+        </div>
       </header>
 
       <div className={`grid gap-6 ${mode === "room" ? "lg:grid-cols-[1fr_320px]" : ""}`}>
@@ -278,69 +294,51 @@ export function CallbackApp() {
             Paste what you’re going to say, pick the room, and every cultural reference is underlined by how it will play there.
           </p>
 
-          <div className="mt-6 flex flex-wrap items-end gap-3">
-            <Select
-              label="Example"
-              value={presetId}
-              options={[...(presetId ? [] : [{ value: "", label: "Shared set" }]), ...PRESETS.map((p) => ({ value: p.id, label: p.label }))]}
-              onChange={loadPreset}
-            />
-            <div className="flex flex-col gap-1">
-              <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted">Mode</span>
-              <div role="group" aria-label="Mode" className="flex h-9 overflow-hidden rounded-md border border-line bg-surface text-sm">
-                {(["room", "tour"] as const).map((m) => (
-                  <button
-                    key={m}
-                    aria-pressed={mode === m}
-                    onClick={() => changeMode(m)}
-                    className={`px-3 transition-colors ${mode === m ? "bg-ink text-bg" : "text-muted hover:text-ink"}`}
-                  >
-                    {m === "room" ? "One room" : "Tour"}
-                  </button>
-                ))}
+          <div className="mt-6 flex flex-wrap items-end justify-between gap-x-3 gap-y-3">
+            <div className="flex flex-wrap items-end gap-3">
+              <Select
+                label="Example"
+                value={presetId}
+                options={[...(presetId ? [] : [{ value: "", label: "Shared set" }]), ...PRESETS.map((p) => ({ value: p.id, label: p.label }))]}
+                onChange={loadPreset}
+              />
+              <div className="flex flex-col gap-1">
+                <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted">Mode</span>
+                <div role="group" aria-label="Mode" className="flex h-9 overflow-hidden rounded-md border border-line bg-surface text-sm">
+                  {(["room", "tour"] as const).map((m) => (
+                    <button
+                      key={m}
+                      aria-pressed={mode === m}
+                      onClick={() => changeMode(m)}
+                      className={`px-2.5 transition-colors ${mode === m ? "bg-ink text-bg" : "text-muted hover:text-ink"}`}
+                    >
+                      {m === "room" ? "One room" : "Tour"}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-            {mode === "room" && (
-              <Select label="City" value={room.city} options={CITY_NAMES.map((c) => ({ value: c, label: c }))} onChange={(city) => changeRoom({ city })} />
-            )}
-            <Select
-              label="Age"
-              value={room.age}
-              options={AGE_BANDS.map((a) => ({ value: a, label: AGE_LABELS[a] }))}
-              onChange={(age) => changeRoom({ age: age as AgeBand })}
-            />
-            <button
-              onClick={() => run(text.current, activeRooms)}
-              disabled={status === "loading"}
-              className={`h-9 rounded-md px-4 text-sm font-medium transition-colors disabled:opacity-60 ${
-                stale ? "border border-ink bg-surface text-ink" : "border border-line bg-surface text-ink hover:border-muted"
-              }`}
-            >
-              {status === "loading" ? (
-                <span className="flex items-center gap-2">
-                  <LoaderCircle size={14} className="animate-spin" /> Checking
-                </span>
-              ) : (
-                "Check"
+              {mode === "room" && (
+                <Select label="City" value={room.city} options={CITY_NAMES.map((c) => ({ value: c, label: c }))} onChange={(city) => changeRoom({ city })} />
               )}
-            </button>
-            {mode === "room" && (
-              <button
-                onClick={runFix}
-                disabled={fix?.status === "running" || status === "loading"}
-                className="flex h-9 items-center gap-2 rounded-md bg-ink px-3.5 text-sm font-medium text-bg transition-opacity hover:opacity-90 disabled:opacity-50"
-              >
-                {fix?.status === "running" ? <LoaderCircle size={14} className="animate-spin" /> : <Wand2 size={14} />}
-                Fix my set
-              </button>
-            )}
-            <button
-              onClick={copyLink}
-              className="flex h-9 items-center gap-2 rounded-md border border-line bg-surface px-3 text-sm text-muted transition-colors hover:border-muted hover:text-ink"
-            >
-              {copied ? <Check size={14} /> : <LinkIcon size={14} />}
-              {copied ? "Copied" : "Copy link"}
-            </button>
+              <Select
+                label="Age"
+                value={room.age}
+                options={AGE_BANDS.map((a) => ({ value: a, label: AGE_LABELS[a] }))}
+                onChange={(age) => changeRoom({ age: age as AgeBand })}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              {mode === "room" && (
+                <button
+                  onClick={runFix}
+                  disabled={fix?.status === "running" || status === "loading"}
+                  className="flex h-9 items-center gap-2 rounded-md bg-ink px-3.5 text-sm font-medium text-bg transition-opacity hover:opacity-90 disabled:opacity-50"
+                >
+                  {fix?.status === "running" ? <LoaderCircle size={14} className="animate-spin" /> : <Wand2 size={14} />}
+                  Fix my set
+                </button>
+              )}
+            </div>
           </div>
 
           {mode === "tour" && (
@@ -392,18 +390,34 @@ export function CallbackApp() {
                 </li>
               ))}
             </ul>
-            <p className="tnum text-xs text-muted" aria-live="polite">
-              {status === "error"
-                ? quota
-                  ? "Qloo’s monthly limit is nearly used. The examples still work."
-                  : "Check failed. Try again."
-                : stale
-                  ? "Edited since last check"
-                  : result
-                    ? mode === "tour"
-                      ? `${marks.length} references · ${tally.green} land everywhere · ${tally.yellow} shaky · ${tally.red} die somewhere${tally.none ? ` · ${tally.none} no data` : ""}`
-                      : `${marks.length} references · ${tally.green} land · ${tally.yellow} shaky · ${tally.red} die${tally.none ? ` · ${tally.none} no data` : ""}`
-                    : ""}
+            <p className="tnum flex items-center gap-2 text-xs text-muted" aria-live="polite">
+              {status === "loading" ? (
+                <>
+                  <LoaderCircle size={12} className="animate-spin" /> Checking with Qloo
+                </>
+              ) : status === "error" ? (
+                <>
+                  {quota ? "Qloo’s monthly limit is nearly used. The examples still work." : "Check failed."}
+                  {!quota && (
+                    <button onClick={() => run(text.current, activeRooms)} className="rounded border border-line px-2 py-0.5 text-ink hover:border-muted">
+                      Try again
+                    </button>
+                  )}
+                </>
+              ) : stale ? (
+                <>
+                  Edited since last check
+                  <button onClick={() => run(text.current, activeRooms)} className="rounded border border-ink px-2 py-0.5 text-ink hover:bg-ink hover:text-bg">
+                    Check now
+                  </button>
+                </>
+              ) : result ? (
+                mode === "tour" ? (
+                  `${marks.length} references · ${tally.green} land everywhere · ${tally.yellow} shaky · ${tally.red} die somewhere${tally.none ? ` · ${tally.none} no data` : ""}`
+                ) : (
+                  `${marks.length} references · ${tally.green} land · ${tally.yellow} shaky · ${tally.red} die${tally.none ? ` · ${tally.none} no data` : ""}`
+                )
+              ) : null}
             </p>
           </div>
 
@@ -419,10 +433,23 @@ export function CallbackApp() {
 
           {mode === "tour" && result && <TourGrid references={result.references} cities={tour} onPick={openCity} />}
 
-          <p className="mt-10 max-w-[62ch] text-xs leading-relaxed text-muted">
-            How it works: each reference is matched to a Qloo entity, then ranked by how much this city likes it compared with eight other US cities, with
-            the age band applied on top. Qloo measures liking, not recognition, so “lands” is an estimate, not a guarantee.
-          </p>
+          <footer className="mt-10 max-w-[62ch] space-y-2 border-t border-line pt-4 text-xs leading-relaxed text-muted">
+            <p>
+              <span className="font-medium text-ink">How it works.</span> Each reference is matched to a Qloo entity, then ranked by how much this city likes it
+              compared with seven other US cities, with the age band applied on top. Qloo measures liking, not recognition, so “lands” is a strong estimate, not a
+              guarantee.
+            </p>
+            <p>
+              Powered by Qloo’s Taste AI API · Built for the Qloo Agentic Hackathon ·{" "}
+              <a className="underline underline-offset-2 hover:text-ink" href="https://github.com/techbone/Callback">
+                Source
+              </a>{" "}
+              ·{" "}
+              <a className="underline underline-offset-2 hover:text-ink" href="https://github.com/techbone/Callback#use-callback-inside-your-agent-mcp">
+                Use it in Claude via MCP
+              </a>
+            </p>
+          </footer>
         </main>
 
         {mode === "room" && (

@@ -84,3 +84,32 @@ Qloo Taste AI API (`/search`, `/v2/insights`: `filter.results.entities`, `signal
 4. Click **Fix my set** and watch the agent work.
 5. Switch to **Tour** and add Chicago, Denver and Houston.
 6. Optional: add the MCP endpoint as a custom connector in Claude and ask "Will this set work in Houston? Fix whatever dies."
+
+
+---
+
+## Form cheat sheet (what goes in each field)
+
+**Built with** (type each and press enter): `qloo`, `qloo-taste-ai-api`, `next.js`, `react`, `typescript`, `codemirror`, `tailwindcss`, `model-context-protocol`, `groq`, `vercel`, `zod`
+
+**"Try it out" links** (use "add another link" for each):
+1. https://callback-ecru-one.vercel.app
+2. https://github.com/techbone/Callback
+3. https://callback-ecru-one.vercel.app/api/mcp
+
+**Image gallery** (upload in this order; all are 1800×1200, 3:2, under 300 KB). The first image becomes the thumbnail, so it's the one that shows the product.
+
+| # | File in `docs/media/` | Shows |
+|---|---|---|
+| 1 | `01-underlines.png` | The editor: green, yellow and red underlines in your own text |
+| 2 | `02-why.png` | Click an underline: rank, the city bars, age, and swaps with shared Qloo tags |
+| 3 | `03-boston.png` | The same set in Boston: it nearly flips |
+| 4 | `04-fix-my-set.png` | The agent's steps and the result |
+| 5 | `05-tour.png` | Tour mode: a reference-by-city grid |
+| 6 | `06-qloo-receipt.png` | The Qloo receipt: which endpoints and signals were used |
+| 7 | `07-how-it-uses-qloo.png` | Diagram: the four Qloo calls behind every verdict |
+| 8 | `08-mcp.png` | The MCP server: six tools, one URL |
+
+**Video demo link:** optional. If you record one, follow `docs/DEMO.md` and paste the YouTube or Vimeo URL.
+
+To re-shoot all the images after a design change: start the app (`npm run build && npx next start -p 3111`) and run `node scripts/capture-media.mjs`.

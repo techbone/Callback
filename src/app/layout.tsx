@@ -6,9 +6,16 @@ const display = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-disp
 const sans = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
+const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://callback-ecru-one.vercel.app";
+const TITLE = "Callback: a spell-checker for cultural references";
+const DESCRIPTION = "Paste what you're about to say, pick the room, and see which references land, which die, and what to say instead. Powered by Qloo taste data.";
+
 export const metadata: Metadata = {
-  title: "Callback",
-  description: "A spell-checker for cultural references. See which of your references land in the room you're playing.",
+  metadataBase: new URL(SITE),
+  title: TITLE,
+  description: DESCRIPTION,
+  openGraph: { title: TITLE, description: DESCRIPTION, type: "website", siteName: "Callback" },
+  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
