@@ -3,6 +3,7 @@ import type { AgeProfile, Profile } from "../scoring";
 import { QLOO_TYPES, type AgeBand, type Entity, type QlooType, type Room } from "../types";
 import type { QlooClient } from "./client";
 import { cached, cacheGet, cacheSet, isMiss } from "./store";
+import { record, type QlooOp } from "./trace";
 
 const DAY = 24 * 60 * 60 * 1000;
 const WEEK = 7 * DAY;
@@ -79,7 +80,8 @@ export class LiveQlooClient implements QlooClient {
     private base = "https://hackathon.api.qloo.com",
   ) {}
 
-  private async get<T>(path: string, params: Record<string, string> | URLSearchParams): Promise<T> {
+  private async get<T>(path: string, params: Record<string, string> | URLSearchParams, op: QlooOp): Promise<T> {
+    record(op, false);
     const url = `${this.base}${path}?${new URLSearchParams(params)}`;
     for (let attempt = 0; ; attempt++) {
       await throttle();
@@ -101,9 +103,9 @@ export class LiveQlooClient implements QlooClient {
       // cultural types only: unfiltered search returns individual store locations first
       const params = new URLSearchParams({ query, take: "8" });
       for (const t of SEARCH_TYPES) params.append("types", apiType(t));
-      const r = await this.get<{ results?: RawEntity[] }>("/search", params);
+      const r = await this.get<{ results?: RawEntity[] }>("/search", params, "search");
       return (r.results ?? []).flatMap((x) => toEntity(x) ?? []);
-    });
+    }, "search");
   }
 
   async affinities(type: QlooType, ids: string[], cities: string[], age: AgeBand): Promise<Record<string, Profile>> {
@@ -118,13 +120,18 @@ export class LiveQlooClient implements QlooClient {
           if (isMiss(v)) missing.push(id);
           else out[id][city] = v as number | null;
         }
+        record("location", true, ids.length - missing.length);
         if (missing.length === 0) return;
-        const r = await this.get<InsightsResponse>("/v2/insights", {
-          "filter.type": apiType(type),
-          "filter.results.entities": missing.join(","),
-          ...locationParams(city, age),
-          take: String(missing.length),
-        });
+        const r = await this.get<InsightsResponse>(
+          "/v2/insights",
+          {
+            "filter.type": apiType(type),
+            "filter.results.entities": missing.join(","),
+            ...locationParams(city, age),
+            take: String(missing.length),
+          },
+          "location",
+        );
         const got = new Map((r.results?.entities ?? []).map((e) => [e.entity_id, e.query?.affinity ?? null]));
         for (const id of missing) {
           const v = got.get(id) ?? null;
@@ -148,13 +155,18 @@ export class LiveQlooClient implements QlooClient {
           if (isMiss(v)) missing.push(id);
           else out[id][band] = v as number | null;
         }
+        record("age", true, ids.length - missing.length);
         if (missing.length === 0) return;
-        const r = await this.get<InsightsResponse>("/v2/insights", {
-          "filter.type": apiType(type),
-          "filter.results.entities": missing.join(","),
-          "signal.demographics.age": band,
-          take: String(missing.length),
-        });
+        const r = await this.get<InsightsResponse>(
+          "/v2/insights",
+          {
+            "filter.type": apiType(type),
+            "filter.results.entities": missing.join(","),
+            "signal.demographics.age": band,
+            take: String(missing.length),
+          },
+          "age",
+        );
         const got = new Map((r.results?.entities ?? []).map((e) => [e.entity_id, e.query?.affinity ?? null]));
         for (const id of missing) {
           const v = got.get(id) ?? null;
@@ -173,9 +185,9 @@ export class LiveQlooClient implements QlooClient {
         "signal.interests.entities": entity.qlooId,
         ...locationParams(room.city, "any"),
         take: String(take),
-      });
+      }, "similar");
       return (r.results?.entities ?? []).flatMap((x) => toEntity(x, entity.type) ?? []);
-    });
+    }, "similar");
   }
 
   crowd(type: QlooType, room: Room, take: number): Promise<Entity[]> {
@@ -190,8 +202,8 @@ export class LiveQlooClient implements QlooClient {
           ? { "filter.location": point, "filter.location.radius": "20000" }
           : { "signal.location": point, "signal.location.radius": RADIUS };
       if (type === "tv_show") params["bias.trends"] = "high";
-      const r = await this.get<InsightsResponse>("/v2/insights", { "filter.type": apiType(type), ...params, take: String(take) });
+      const r = await this.get<InsightsResponse>("/v2/insights", { "filter.type": apiType(type), ...params, take: String(take) }, "crowd");
       return (r.results?.entities ?? []).flatMap((x) => toEntity(x, type) ?? []);
-    });
+    }, "crowd");
   }
 }

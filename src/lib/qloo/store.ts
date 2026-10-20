@@ -1,4 +1,5 @@
 import seed from "./seed.json";
+import { record, type QlooOp } from "./trace";
 
 /**
  * Cache for Qloo responses. The hackathon key allows 10,000 calls a month, shared
@@ -107,9 +108,12 @@ export function dumpMemory(): Record<string, unknown> {
 const inflight = new Map<string, Promise<unknown>>();
 
 /** Cached call with in-flight de-duplication. */
-export async function cached<T>(key: string, ttlMs: number, load: () => Promise<T>): Promise<T> {
+export async function cached<T>(key: string, ttlMs: number, load: () => Promise<T>, op?: QlooOp): Promise<T> {
   const hit = await cacheGet(key);
-  if (!isMiss(hit)) return hit as T;
+  if (!isMiss(hit)) {
+    if (op) record(op, true);
+    return hit as T;
+  }
   const running = inflight.get(key);
   if (running) return running as Promise<T>;
   const p = load()

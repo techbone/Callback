@@ -84,6 +84,8 @@ export type Candidate = { entity: Entity; score: Score };
 
 export type CheckResult = {
   references: Reference[];
+  /** what was asked of Qloo for this check (live data only) */
+  trace?: import("./qloo/trace").Trace;
   /** "demo" means invented fixtures, not live Qloo data */
   source: "live" | "demo";
 };

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { checkText } from "@/lib/agent/check";
+import { withTrace } from "@/lib/qloo/trace";
 import { clientKey, rateLimit } from "@/lib/ratelimit";
 import { cityByName } from "@/lib/cities";
 import { AGE_BANDS } from "@/lib/types";
@@ -23,7 +24,8 @@ export async function POST(req: Request) {
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Bad request" }, { status: 400 });
   try {
-    return NextResponse.json(await checkText(parsed.data.text, parsed.data.rooms));
+    const { value, trace } = await withTrace(() => checkText(parsed.data.text, parsed.data.rooms));
+    return NextResponse.json(value.source === "live" ? { ...value, trace } : value);
   } catch (err) {
     console.error("check failed", err);
     return NextResponse.json({ error: "Check failed" }, { status: 502 });

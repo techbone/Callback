@@ -5,13 +5,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CrowdCard } from "./CrowdCard";
 import { FixPanel, type FixState } from "./FixPanel";
 import { Editor, type EditorHandle, type Mark, type MarkClick } from "./Editor";
+import { QlooReceipt } from "./QlooReceipt";
 import { RefPopover } from "./RefPopover";
 import { Select } from "./Select";
 import { TourGrid, worst } from "./TourGrid";
 import { PRESETS } from "@/lib/presets";
 import { decodeShare, encodeShare } from "@/lib/share";
 import type { FixStep } from "@/lib/agent/fix";
-import { CITY_NAMES } from "@/lib/cities";
+import { CITY_NAMES, POOL } from "@/lib/cities";
 import { AGE_BANDS, AGE_LABELS, type AgeBand, type Candidate, type CheckResult, type Reference, type Room, roomKey } from "@/lib/types";
 
 type Status = "idle" | "loading" | "error";
@@ -399,6 +400,14 @@ export function CallbackApp() {
                     : ""}
             </p>
           </div>
+
+          {result && !stale && (
+            <QlooReceipt
+              result={result}
+              cities={new Set([...POOL, ...activeRooms.map((r) => r.city)]).size}
+              aged={activeRooms.some((r) => r.age !== "any")}
+            />
+          )}
 
           {fix && mode === "room" && <FixPanel state={fix} onUndo={undoFix} onClose={() => setFix(null)} />}
 

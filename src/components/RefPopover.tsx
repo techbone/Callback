@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { TYPE_LABEL } from "@/lib/labels";
 import { ageFit, explain, explainAge } from "@/lib/scoring";
 import type { Candidate, Reference, Room, Score } from "@/lib/types";
+import { WhereItLands } from "./WhereItLands";
 
 const pct = (n: number) => Math.round(n * 100);
 
@@ -23,6 +24,8 @@ export function RefPopover({
   const [swaps, setSwaps] = useState<Candidate[] | null>(null);
   const [failed, setFailed] = useState(false);
   const needsSwap = !!score && score.verdict !== "green";
+  const mine = new Set(entity.tags.map((t) => t.id));
+  const shared = (c: Candidate) => c.entity.tags.filter((t) => mine.has(t.id)).map((t) => t.name);
 
   useEffect(() => {
     if (!needsSwap) return;
@@ -60,7 +63,7 @@ export function RefPopover({
           <dl className="tnum mt-3 grid grid-cols-3 gap-px overflow-hidden rounded-md border border-line bg-line text-center">
             {[
               ["Known", `${pct(score.known)}`],
-              [`${room.city} rank`, `#${score.rank} of ${score.of}`],
+              ["Rank here", `#${score.rank} of ${score.of}`],
               ["Vs typical", `${score.lift.toFixed(1)}×`],
             ].map(([k, v]) => (
               <div key={k} className="bg-surface px-2 py-2">
@@ -69,7 +72,8 @@ export function RefPopover({
               </div>
             ))}
           </dl>
-          <p className="mt-1.5 text-[11px] text-muted">Ranked against {score.of} US cities on Qloo affinity. “Vs typical” compares with the median city.</p>
+          {reference.cities && <WhereItLands rows={reference.cities} city={room.city} />}
+          <p className="mt-2 text-[11px] text-muted">Qloo affinity across {score.of} US cities. “Vs typical” compares with the median city.</p>
         </>
       )}
 
@@ -86,17 +90,17 @@ export function RefPopover({
           <ul className="mt-1 space-y-1">
             {swaps?.map((c) => (
               <li key={c.entity.qlooId}>
-                <button
-                  onClick={() => onSwap(c)}
-                  className="group flex w-full items-center justify-between gap-3 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-bg"
-                >
-                  <span className="flex items-center gap-2 font-medium">
-                    <span className={`inline-block size-1.5 shrink-0 rounded-full ${c.score.verdict === "green" ? "bg-green" : "bg-yellow"}`} />
-                    {c.entity.name}
+                <button onClick={() => onSwap(c)} className="group w-full rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-bg">
+                  <span className="flex items-center justify-between gap-3">
+                    <span className="flex items-center gap-2 font-medium">
+                      <span className={`inline-block size-1.5 shrink-0 rounded-full ${c.score.verdict === "green" ? "bg-green" : "bg-yellow"}`} />
+                      {c.entity.name}
+                    </span>
+                    <span className="tnum shrink-0 text-xs text-muted group-hover:text-ink">
+                      #{c.score.rank} here · {c.score.lift.toFixed(1)}×
+                    </span>
                   </span>
-                  <span className="tnum shrink-0 text-xs text-muted group-hover:text-ink">
-                    #{c.score.rank} here · {c.score.lift.toFixed(1)}×
-                  </span>
+                  {shared(c).length > 0 && <span className="mt-0.5 block truncate pl-3.5 text-[11px] text-muted">Shares: {shared(c).slice(0, 2).join(", ")}</span>}
                 </button>
               </li>
             ))}
