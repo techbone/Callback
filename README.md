@@ -23,6 +23,15 @@ Built for the [Qloo Agentic Hackathon](https://qloo.devpost.com/).
 - **MCP server.** Six tools, two prompts and two resources, so any agent can use the same scoring.
 - **Share links.** The text, room and tour are saved in the URL.
 
+## Try it in a minute
+
+1. Open the [live demo](https://callback-ecru-one.vercel.app). The stand-up set loads in Atlanta: Waffle House, Outkast and *P-Valley* land; Tom Brady and Wawa die.
+2. Switch **City** to **Boston**. The same set nearly flips.
+3. Back in Atlanta, click **Tom Brady** to see his rank in each city, the age read, and local swaps.
+4. Click **Fix my set** and watch the agent swap what dies and explain each change. **Undo** restores the original.
+5. Switch to **Tour**, add Denver, and read the reference-by-city grid.
+6. Open **Scored with Qloo** under the editor to see which Qloo calls produced the verdicts.
+
 ## How it works
 
 1. **Find the references.** Capitalised phrases are pulled from the text and resolved with Qloo `/search` (brands, TV, film, music, people, podcasts, games and books). No LLM is involved.
